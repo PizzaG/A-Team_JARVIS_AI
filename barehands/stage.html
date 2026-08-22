@@ -2677,6 +2677,15 @@ function beginGrab(c, i, cur) {
       c.mode = "move";
       c.holdX = cur.x; c.holdY = cur.y; c.holdT = performance.now();
       c.tapX = cur.x; c.tapY = cur.y;   // v3.1: tap-close discrimination
+    } else if (c.type === "video" || c.type === "img") {
+      const headerEl = c.el.querySelector(".media-header");
+      const headerR = headerEl && headerEl.getBoundingClientRect();
+      const isHeader = headerR && cur.y >= headerR.top && cur.y <= headerR.bottom &&
+                       cur.x >= headerR.left && cur.x <= headerR.right;
+      c.barGrab = !!isHeader;
+      c.mode = "move";
+      c.holdX = cur.x; c.holdY = cur.y; c.holdT = performance.now();
+      c.tapX = cur.x; c.tapY = cur.y;
     } else if (c.type === "widget") {
       // the ring: carried like a card; a quick tap blooms the orbs
       c.mode = "move";
@@ -2742,19 +2751,53 @@ function endGrab(c, i, cur) {
                                cur.y - (c.tapY || cur.y));
       if (tMs < 650 && tTrav < 60) openPanel(c);
     }
-    // GESTURE v3.1 (2026-08-14, the crush is DEAD — "that is happening
-    // too naturally"): THE TAP IS SYMMETRIC — tap opens closed things,
-    // tap CLOSES open things. Quick near-still release on a note,
-    // image, or hologram = it recedes. Widgets/rows/orbs keep their own
-    // tap meanings; a fresh force-pull catch can't be tap-killed.
-    // v3.8: notes close at the BAR only (matching folders) — a body
-    // tap can't kill a note mid-read; images/models keep tap-anywhere
-    if ((c.type === "img" || c.type === "model")
-        && !pullFresh && !c.flying) {
+    // Bare-Hands Gesture Controls for Video (Play/Pause on screen tap, Close on bar tap):
+    if (c.type === "video" && !pullFresh && !c.flying) {
+      const vMs = performance.now() - (cur.grabT || 0);
+      const vTrav = Math.hypot(cur.x - (c.tapX || cur.x), cur.y - (c.tapY || cur.y));
+      if (vMs < 650 && vTrav < 60) {
+        if (c.barGrab) {
+          killItem(c);
+        } else {
+          const video = c.el.querySelector("video");
+          const btnPlay = c.el.querySelector(".btn-play");
+          const playPulse = c.el.querySelector(".video-play-pulse");
+          if (video) {
+            if (video.paused) {
+              video.play().then(() => {
+                if (btnPlay) btnPlay.textContent = "⏸";
+                if (playPulse) {
+                  playPulse.textContent = "▶";
+                  playPulse.classList.add("active");
+                  setTimeout(() => playPulse.classList.remove("active"), 400);
+                }
+              }).catch(() => {});
+            } else {
+              video.pause();
+              if (btnPlay) btnPlay.textContent = "▶";
+              if (playPulse) {
+                playPulse.textContent = "⏸";
+                playPulse.classList.add("active");
+                setTimeout(() => playPulse.classList.remove("active"), 400);
+              }
+            }
+          }
+        }
+      }
+    }
+    // Bare-Hands Gesture Controls for Photos & Models:
+    if ((c.type === "img" || c.type === "model") && !pullFresh && !c.flying) {
       const xMs = performance.now() - (cur.grabT || 0);
-      const xTrav = Math.hypot(cur.x - (c.tapX || cur.x),
-                               cur.y - (c.tapY || cur.y));
-      if (xMs < 650 && xTrav < 60) killItem(c);
+      const xTrav = Math.hypot(cur.x - (c.tapX || cur.x), cur.y - (c.tapY || cur.y));
+      if (xMs < 650 && xTrav < 60) {
+        if (c.barGrab) {
+          killItem(c);
+        } else {
+          const holoBtn = c.el.querySelector(".holo-toggle");
+          if (holoBtn) holoBtn.click();
+          else killItem(c);
+        }
+      }
     }
     // PHASE 2 quick-tap releases: the RING toggles its orbital bloom;
     // an ORB grows into its browser pane (same discrimination gate as

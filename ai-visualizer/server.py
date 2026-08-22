@@ -171,20 +171,32 @@ def list_faces():
 def read_bus():
     now = time.time()
 
-    # 1. Check physical Voice Bus files first
     state = "idle"
     level = 0.0
     samples = [0.0] * 64
     loading = False
 
+    # 1. Check Backtalk bus state (.voice_state)
     try:
         if (BUS / ".voice_state").exists():
-            state = (BUS / ".voice_state").read_text(encoding="utf-8").strip().lower()
-            if state not in STATES:
-                state = "idle"
+            st = (BUS / ".voice_state").read_text(encoding="utf-8").strip().lower()
+            if st in STATES:
+                state = st
     except OSError:
         pass
 
+    # 2. Check Barehands state (barehands/state/state)
+    if state == "idle":
+        try:
+            bh_state_file = ROOT_DIR / "barehands" / "state" / "state"
+            if bh_state_file.exists():
+                st = bh_state_file.read_text(encoding="utf-8").strip().lower()
+                if st in STATES:
+                    state = st
+        except Exception:
+            pass
+
+    # 3. Check Backtalk waveform (.voice_waveform)
     try:
         if (BUS / ".voice_waveform").exists():
             payload = json.loads((BUS / ".voice_waveform").read_text(encoding="utf-8"))
@@ -198,9 +210,24 @@ def read_bus():
     except Exception:
         pass
 
+    # 4. Check Barehands waveform (barehands/state/wave.json)
+    if state != "speaking":
+        try:
+            bh_wave_file = ROOT_DIR / "barehands" / "state" / "wave.json"
+            if bh_wave_file.exists():
+                payload = json.loads(bh_wave_file.read_text(encoding="utf-8"))
+                age = now - float(payload.get("ts", 0))
+                raw = payload.get("samples") or []
+                if raw and age < WAVEFORM_STALE_S:
+                    state = "speaking"
+                    samples = [float(s) * 9000.0 for s in raw[:64]]
+                    level = min(1.0, sum(abs(s) for s in samples) / len(samples) / 3000.0)
+        except Exception:
+            pass
+
     loading = (BUS / ".voice_loading_pid").exists() if BUS.exists() else False
 
-    # 2. Check Web simulation state if bus is idle and web has active state
+    # 5. Check Web simulation state if bus is idle and web has active state
     if state == "idle" and now - WEB_STATE["last_update"] < 2.5 and WEB_STATE["state"] in ("speaking", "thinking", "listening"):
         state = WEB_STATE["state"]
         level = WEB_STATE["level"]

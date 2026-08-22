@@ -13,8 +13,12 @@ echo.
 
 rem Detect Python Command
 set "PYCMD="
-where py >nul 2>nul && set "PYCMD=py"
-if "%PYCMD%"=="" where python >nul 2>nul && set "PYCMD=python"
+if exist "%~dp0backtalk\.venv\Scripts\python.exe" (
+  set "PYCMD=%~dp0backtalk\.venv\Scripts\python.exe"
+) else (
+  where py >nul 2>nul && set "PYCMD=py"
+  if "%PYCMD%"=="" where python >nul 2>nul && set "PYCMD=python"
+)
 if "%PYCMD%"=="" (
   echo [ERROR] Python was not found on PATH. Please install Python 3.10+ or add it to PATH.
   pause

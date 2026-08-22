@@ -3554,42 +3554,40 @@ async function boot() {
           }
 
         }
-        if (dbg.style.display === "block")
+        if (dbg.style.display === "block") {
+          const cidsAll = Object.keys(cursors);
+          let clapDbg = "";
+          if (cidsAll.length >= 2) {
+            const cA = cursors[cidsAll[0]], cB = cursors[cidsAll[1]];
+            const wD = Math.round(Math.hypot((cA.wristX||0)-(cB.wristX||0), (cA.wristY||0)-(cB.wristY||0)));
+            clapDbg = `\nclap: up ${(cA.handUp||0).toFixed(2)}/${(cB.handUp||0).toFixed(2)} wD ${wD}px`;
+          }
           dbg.textContent = `mode ${MODE}\nfps ${fps}\nhands ${res.landmarks.length}` +
             `\npinch ${ratio.toFixed(2)} ${cur.pinched ? "CLOSED" : "open"}` +
             `\npalm ${cur.palmOpen ? "OPEN" : "-"}${cur.fpSplay ? " CLAW" : ""} pull ph${cur.fp ? cur.fp.ph : 0}` +
-            `\n${cur.fpDbg || ""}` + (SAMPLED ? `\n${SAMPLED}` : "");
+            `\n${cur.fpDbg || ""}${clapDbg}` + (SAMPLED ? `\n${SAMPLED}` : "");
+        }
       });
       Object.keys(cursors).map(Number).forEach(i => { if (!seen.has(i)) dropCursor(i); });
 
-      // ---- GESTURE v3.9: THE DELIBERATE CLAP (Jared, after false
-      // resets kept wiping his pinch tests: "that reset needs to be
-      // more deliberate!"). Three locks on top of the speed signature:
-      // (1) both hands OPEN during the WIDE approach — a pinching hand
-      // can't start a clap; openness is only waived near contact,
-      // where the blur lives; (2) MUTUAL motion — both hands must
-      // travel toward each other; one hand sweeping past a parked
-      // hand is dead; (3) any hand that pinched in the last 800ms is
-      // disqualified outright.
+      // ---- GESTURE v3.9 / v4: THE PRAYER CLAP (palms together, fingers pointing up)
       const cids = Object.keys(cursors);
       const clapFire = () => {
+        if (typeof foley !== "undefined" && foley.arrive) foley.arrive();
         loadTree().then(() => spawnStage(0.5, 0.42));   // the ring, center
         lastResetT = now; clap.hist.length = 0;
         toast("clap — ring center stage", 900);
       };
       const clapCool = now - lastResetT > 1500 && now - lastClearT > 2500;
+      const closeWristMax = Math.max(innerWidth * 0.15, 200);
+      const closeMcpMax = Math.max(innerWidth * 0.13, 170);
+      const apartMin = Math.min(innerWidth * 0.14, 190);
+
       if (cids.length === 2) {
         const A = cursors[cids[0]], B = cursors[cids[1]];
         const recentPinch = A.pinched || B.pinched ||
-          now - Math.max(A.lastPinchT || 0, B.lastPinchT || 0) < 800;
+          now - Math.max(A.lastPinchT || 0, B.lastPinchT || 0) < 600;
         if (!items.some(k => k.grabbedBy.length) && !recentPinch) {
-          // v3.9.7 — THE PRAYER LAW (Jared's final spec: "my two palms
-          // must make contact and my fingers must be pointed UP").
-          // Pose-first, motion-demoted: fingertip touches leave the
-          // WRISTS far apart (a tent); palm contact brings wrists +
-          // knuckle rows together. Speed no longer matters — only
-          // that the hands WERE apart in the last 800ms (so resting
-          // prayer hands can't refire).
           const wristD = Math.hypot(
             (A.wristX || 0) - (B.wristX || 0),
             (A.wristY || 0) - (B.wristY || 0));
@@ -3597,16 +3595,16 @@ async function boot() {
             (A.mcpX || 0) - (B.mcpX || 0),
             (A.mcpY || 0) - (B.mcpY || 0));
           const bothOpen =
-            (A.softOpen || now - (A.lastSoftT || 0) < 250) &&
-            (B.softOpen || now - (B.lastSoftT || 0) < 250);
-          const bothUp = (A.handUp || 0) > 0.85 && (B.handUp || 0) > 0.85;
+            (A.softOpen || now - (A.lastSoftT || 0) < 450) &&
+            (B.softOpen || now - (B.lastSoftT || 0) < 450);
+          const bothUp = (A.handUp || 0) > 0.55 && (B.handUp || 0) > 0.55;
           clap.hist.push({ t: now, w: wristD,
                            q: (bothOpen && bothUp) ? 1 : 0 });
           while (clap.hist.length && now - clap.hist[0].t > 900)
             clap.hist.shift();
           const wasApart = clap.hist.some(
-            s => now - s.t <= 800 && s.w > innerWidth * 0.18);
-          if (wristD < innerWidth * 0.11 && mcpD < innerWidth * 0.09 &&
+            s => now - s.t <= 800 && s.w > apartMin);
+          if (wristD < closeWristMax && mcpD < closeMcpMax &&
               bothUp && bothOpen && wasApart && clapCool)
             clapFire();
         } else clap.hist.length = 0;
@@ -3615,9 +3613,9 @@ async function boot() {
         // honored only if the pose was QUALIFIED (open + vertical) and
         // closing when tracking died
         const last = clap.hist[clap.hist.length - 1];
-        if (now - last.t < 200 && last.q && last.w < innerWidth * 0.16 &&
+        if (now - last.t < 250 && last.q && last.w < closeWristMax * 1.25 &&
             clap.hist.some(s => last.t - s.t <= 800 &&
-                                s.w > innerWidth * 0.18) &&
+                                s.w > apartMin) &&
             clapCool) clapFire();
         else clap.hist.length = 0;
       }

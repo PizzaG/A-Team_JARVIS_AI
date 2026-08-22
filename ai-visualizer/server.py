@@ -58,16 +58,15 @@ def load_barehands_config():
         orb["path"] = str(Path(str(orb.get("path", ""))).expanduser())
     return cfg
 
-BAREHANDS_CONFIG = load_barehands_config()
-
 def orb_root(i):
     """Resolve a notes orb's jail root, or None."""
     try:
-        orb = BAREHANDS_CONFIG["orbs"][int(i)]
+        cfg = load_barehands_config()
+        orb = cfg["orbs"][int(i)]
         assert orb.get("kind") == "notes"
-        p = Path(orb["path"])
+        p = Path(orb["path"]).expanduser()
         if not p.is_absolute():
-            p = BAREHANDS_DIR / p
+            p = (BAREHANDS_DIR / p).resolve()
         return p.resolve()
     except Exception:
         return None
@@ -422,25 +421,34 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                     self._send_json({"name": "?", "notes": [], "dirs": []}, 404)
                     return
 
-                def walk(d):
+                TEXT_EXTS = {".md", ".txt", ".json", ".py", ".js", ".html", ".css", ".ts", ".sh", ".bat", ".yaml", ".yml", ".toml", ".csv", ".log"}
+                SKIP_NAMES = {".git", "node_modules", "__pycache__", ".venv", "venv", "build", "dist", ".gemini", ".system_generated", "CLAUDE.md"}
+
+                def walk(d, depth=0):
+                    if depth > 4:
+                        return {"name": d.name, "notes": [], "dirs": []}
                     out = {"name": d.name, "notes": [], "dirs": []}
-                    for p in sorted(d.iterdir()):
-                        if p.name.startswith("."):
-                            continue
-                        if p.is_dir():
-                            sub = walk(p)
-                            if sub["notes"] or sub["dirs"]:
-                                out["dirs"].append(sub)
-                        elif p.suffix == ".md" and p.name != "CLAUDE.md":
-                            out["notes"].append({
-                                "title": p.stem,
-                                "file": f"{int(idx)}/{p.relative_to(root).as_posix()}"
-                            })
+                    try:
+                        for p in sorted(d.iterdir()):
+                            if p.name in SKIP_NAMES or p.name.startswith("."):
+                                continue
+                            if p.is_dir():
+                                sub = walk(p, depth + 1)
+                                if sub["notes"] or sub["dirs"]:
+                                    out["dirs"].append(sub)
+                            elif p.suffix.lower() in TEXT_EXTS:
+                                out["notes"].append({
+                                    "title": p.name,
+                                    "file": f"{int(idx)}/{p.relative_to(root).as_posix()}"
+                                })
+                    except (PermissionError, OSError):
+                        pass
                     return out
 
                 try:
                     tree = walk(root)
-                    tree["name"] = BAREHANDS_CONFIG["orbs"][int(idx)].get("title", tree["name"])
+                    cfg = load_barehands_config()
+                    tree["name"] = cfg["orbs"][int(idx)].get("title", tree["name"])
                     self._send_json(tree)
                 except Exception:
                     self._send_json({"name": "?", "notes": [], "dirs": []}, 500)
@@ -476,11 +484,15 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                     self._send_text("Not found", 404)
                     return
                 target = (root / rel).resolve()
-                if (root not in target.parents) or target.suffix != ".md" or not target.is_file():
+                TEXT_EXTS = {".md", ".txt", ".json", ".py", ".js", ".html", ".css", ".ts", ".sh", ".bat", ".yaml", ".yml", ".toml", ".csv", ".log"}
+                if (root not in target.parents) or target.suffix.lower() not in TEXT_EXTS or not target.is_file():
                     self._send_text("Not found", 404)
                     return
-                body = target.read_bytes()
-                self._send_bytes(body, "text/plain; charset=utf-8")
+                try:
+                    body = target.read_bytes()
+                    self._send_bytes(body, "text/plain; charset=utf-8")
+                except Exception:
+                    self._send_text("Error reading file", 500)
             elif url_path == "/api/models":
                 cfg = load_config()
                 models = get_ollama_models(cfg.get("ollama_url", "http://127.0.0.1:11434"))

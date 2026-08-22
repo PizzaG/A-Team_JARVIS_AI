@@ -103,114 +103,137 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
   .card.imgcard, .card.videocard {
-      padding:0; width:auto; max-width:62vw; overflow:visible;
-      min-width:280px; min-height:180px; display:flex; flex-direction:column;
-      background:linear-gradient(168deg, rgba(20,48,45,0.88), rgba(8,24,24,0.82));
-      border:1.5px solid rgba(111,229,214,0.65); border-radius:14px;
-      box-shadow:0 16px 60px rgba(0,0,0,0.7), 0 0 35px rgba(0,229,255,0.22),
-                 inset 0 1px 0 rgba(191,255,245,0.45); backdrop-filter:blur(18px); }
-  /* Holographic Corner Brackets */
+      padding:8px 8px 12px 8px; width:auto; max-width:64vw; overflow:visible;
+      min-width:320px; min-height:200px; display:flex; flex-direction:column;
+      background:linear-gradient(135deg, rgba(8, 28, 34, 0.40) 0%, rgba(4, 14, 18, 0.22) 100%);
+      border:1px solid rgba(143, 240, 228, 0.38); border-radius:24px;
+      box-shadow:0 28px 80px rgba(0,0,0,0.55), 0 0 50px rgba(0,229,255,0.16),
+                 inset 0 1px 2px rgba(210,255,248,0.65);
+      backdrop-filter:blur(32px) saturate(190%);
+      transition:box-shadow 0.3s ease, border-color 0.3s ease; }
+  .card.imgcard.grabbed, .card.videocard.grabbed {
+      border-color:#8ff0e4;
+      box-shadow:0 32px 90px rgba(0,0,0,0.65), 0 0 60px rgba(111,229,214,0.35),
+                 inset 0 1px 3px rgba(210,255,248,0.9); }
+
+  /* Holographic Corner Optics */
   .card.imgcard::before, .card.imgcard::after,
   .card.videocard::before, .card.videocard::after,
   .panel::before, .panel::after {
-    content:""; position:absolute; width:14px; height:14px;
-    pointer-events:none; border-color:#8ff0e4; border-style:solid; z-index:15;
-    filter:drop-shadow(0 0 5px #8ff0e4); }
+    content:""; position:absolute; width:16px; height:16px;
+    pointer-events:none; border-color:rgba(143,240,228,0.85); border-style:solid; z-index:15;
+    filter:drop-shadow(0 0 6px rgba(143,240,228,0.7)); }
   .card.imgcard::before, .card.videocard::before, .panel::before {
-    top:-3px; left:-3px; border-width:2.5px 0 0 2.5px; border-top-left-radius:6px; }
+    top:-2px; left:-2px; border-width:2px 0 0 2px; border-top-left-radius:8px; }
   .card.imgcard::after, .card.videocard::after, .panel::after {
-    bottom:-3px; right:-3px; border-width:0 2.5px 2.5px 0; border-bottom-right-radius:6px; }
-  .corner-tr { position:absolute; top:-3px; right:-3px; width:14px; height:14px;
-    border-top:2.5px solid #8ff0e4; border-right:2.5px solid #8ff0e4;
-    border-top-right-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
-  .corner-bl { position:absolute; bottom:-3px; left:-3px; width:14px; height:14px;
-    border-bottom:2.5px solid #8ff0e4; border-left:2.5px solid #8ff0e4;
-    border-bottom-left-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
+    bottom:-2px; right:-2px; border-width:0 2px 2px 0; border-bottom-right-radius:8px; }
+  .corner-tr { position:absolute; top:-2px; right:-2px; width:16px; height:16px;
+    border-top:2px solid rgba(143,240,228,0.85); border-right:2px solid rgba(143,240,228,0.85);
+    border-top-right-radius:8px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 6px rgba(143,240,228,0.7)); }
+  .corner-bl { position:absolute; bottom:-2px; left:-2px; width:16px; height:16px;
+    border-bottom:2px solid rgba(143,240,228,0.85); border-left:2px solid rgba(143,240,228,0.85);
+    border-bottom-left-radius:8px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 6px rgba(143,240,228,0.7)); }
 
   .media-header {
     display:flex; align-items:center; justify-content:space-between;
-    padding:8px 14px; background:rgba(10,24,28,0.75);
-    border-bottom:1px solid rgba(143,240,228,0.25);
-    border-top-left-radius:13px; border-top-right-radius:13px;
+    padding:4px 8px 10px 8px; background:transparent;
+    border-bottom:none;
     cursor:grab; user-select:none; }
   .media-header:active { cursor:grabbing; }
   .media-header .title {
-    font:bold 12px "SF Mono",Menlo,monospace; color:#8ff0e4; letter-spacing:0.08em;
+    font:600 11.5px "SF Mono",Menlo,monospace; color:#a4fff1; letter-spacing:0.08em;
     display:flex; align-items:center; gap:8px; overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap; max-width:65%; }
+    text-overflow:ellipsis; white-space:nowrap; max-width:65%;
+    background:rgba(143,240,228,0.08); border:1px solid rgba(143,240,228,0.22);
+    border-radius:20px; padding:4px 14px; text-shadow:0 0 10px rgba(143,240,228,0.5); }
   .media-header .actions { display:flex; align-items:center; gap:8px; }
   
   .btn-hud {
-    background:rgba(143,240,228,0.12); border:1px solid rgba(143,240,228,0.4);
-    color:#8ff0e4; border-radius:12px; padding:3px 10px; font:11px "SF Mono",Menlo,monospace;
-    cursor:pointer; transition:all 0.2s ease; user-select:none; }
-  .btn-hud:hover {
+    background:rgba(143,240,228,0.12); border:1px solid rgba(143,240,228,0.35);
+    color:#a0ffef; border-radius:18px; padding:4px 12px; font:600 11px "SF Mono",Menlo,monospace;
+    cursor:pointer; transition:all 0.2s ease; user-select:none; display:flex; align-items:center; gap:5px; }
+  .btn-hud:hover, .btn-hud.active {
     background:rgba(143,240,228,0.28); border-color:#8ff0e4; color:#fff;
-    box-shadow:0 0 10px rgba(143,240,228,0.45); }
+    box-shadow:0 0 14px rgba(143,240,228,0.55); transform:scale(1.03); }
   .btn-close {
-    background:rgba(255,80,80,0.15); border:1px solid rgba(255,100,100,0.4);
-    color:#ff8888; border-radius:50%; width:22px; height:22px;
+    background:rgba(255,90,90,0.16); border:1px solid rgba(255,120,120,0.4);
+    color:#ffa0a0; border-radius:50%; width:24px; height:24px;
     display:flex; align-items:center; justify-content:center;
     font-size:12px; cursor:pointer; transition:all 0.2s ease; user-select:none; }
   .btn-close:hover {
-    background:rgba(255,80,80,0.38); color:#fff; box-shadow:0 0 10px rgba(255,80,80,0.5); }
+    background:rgba(255,90,90,0.42); color:#fff; box-shadow:0 0 12px rgba(255,90,90,0.6); transform:scale(1.08); }
 
   .media-body {
     position:relative; width:100%; display:flex; align-items:center;
     justify-content:center; overflow:hidden;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px; }
+    border-radius:18px; }
   .media-body img {
-    display:block; max-width:56vw; max-height:62vh; min-width:200px;
-    object-fit:contain; border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    display:block; max-width:58vw; max-height:60vh; min-width:220px;
+    object-fit:contain; border-radius:18px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.4);
     transition:filter 0.3s ease; }
   .media-body img.holo-active, .video-container video.holo-active {
-    filter:invert(0.90) hue-rotate(165deg) contrast(1.22) brightness(1.10) drop-shadow(0 0 18px rgba(111,229,214,0.5)) !important;
+    filter:invert(0.90) hue-rotate(165deg) contrast(1.22) brightness(1.10) drop-shadow(0 0 22px rgba(111,229,214,0.65)) !important;
     mix-blend-mode:screen !important; }
 
-  /* Custom Video Player Styling */
+  /* Spatial Video Screen */
   .video-container {
-    position:relative; width:100%; background:#000; overflow:hidden;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
-    display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    position:relative; width:100%; background:transparent; overflow:hidden;
+    border-radius:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
   .video-container video {
-    display:block; max-width:56vw; max-height:60vh;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
-    transition:filter 0.3s ease; }
+    display:block; max-width:58vw; max-height:60vh;
+    border-radius:18px; box-shadow:0 12px 40px rgba(0,0,0,0.4);
+    transition:filter 0.3s ease, transform 0.3s ease; }
+  
   .video-play-pulse {
     position:absolute; top:50%; left:50%;
-    transform:translate(-50%, -50%) scale(0.8);
-    width:64px; height:64px; border-radius:50%;
-    background:rgba(8,20,24,0.8); border:2px solid #8ff0e4;
-    box-shadow:0 0 22px #8ff0e4; display:flex; align-items:center;
-    justify-content:center; color:#8ff0e4; font-size:28px;
+    transform:translate(-50%, -50%) scale(0.7);
+    width:72px; height:72px; border-radius:50%;
+    background:rgba(6,20,24,0.75); border:1.5px solid #8ff0e4;
+    backdrop-filter:blur(16px);
+    box-shadow:0 0 30px rgba(143,240,228,0.7), inset 0 0 14px rgba(143,240,228,0.4);
+    display:flex; align-items:center; justify-content:center; color:#8ff0e4; font-size:30px;
     pointer-events:none; opacity:0;
     transition:all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index:10; }
   .video-play-pulse.active {
-    opacity:1; transform:translate(-50%, -50%) scale(1.1); }
+    opacity:1; transform:translate(-50%, -50%) scale(1.05); }
+
+  /* Floating Frosted Scrubber Island */
   .video-scrubber-bar {
-    position:absolute; bottom:0; left:0; right:0;
-    padding:10px 14px 8px 14px;
-    background:linear-gradient(0deg, rgba(6,16,20,0.88) 0%, rgba(6,16,20,0.45) 60%, transparent 100%);
-    display:flex; align-items:center; gap:12px;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    position:absolute; bottom:14px; left:20px; right:20px;
+    height:42px; padding:0 16px;
+    background:rgba(6,18,22,0.60); backdrop-filter:blur(24px) saturate(180%);
+    border:1px solid rgba(143,240,228,0.32); border-radius:21px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(111,229,214,0.15);
+    display:flex; align-items:center; gap:14px;
     z-index:12; user-select:none; }
+  .video-scrubber-bar .video-play-btn,
   .video-vol-btn {
-    color:#8ff0e4; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-    width:24px; height:24px; border-radius:4px; transition:all 0.2s ease; user-select:none; }
-  .video-vol-btn:hover { background:rgba(143,240,228,0.2); text-shadow:0 0 8px #8ff0e4; }
+    color:#a4fff1; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%; background:rgba(143,240,228,0.08);
+    border:1px solid rgba(143,240,228,0.22); transition:all 0.2s ease; user-select:none; }
+  .video-scrubber-bar .video-play-btn:hover,
+  .video-vol-btn:hover {
+    background:rgba(143,240,228,0.25); border-color:#8ff0e4; color:#fff;
+    box-shadow:0 0 10px rgba(143,240,228,0.5); transform:scale(1.08); }
   .video-scrub-track {
-    position:relative; flex:1; height:4px;
-    background:rgba(143,240,228,0.25); border-radius:2px;
-    cursor:pointer; transition:height 0.15s ease; }
-  .video-scrub-track:hover { height:6px; }
+    position:relative; flex:1; height:5px;
+    background:rgba(143,240,228,0.20); border-radius:3px;
+    cursor:pointer; transition:all 0.15s ease; }
+  .video-scrub-track:hover { height:7px; background:rgba(143,240,228,0.30); }
   .video-scrub-progress {
-    height:100%; background:#8ff0e4; border-radius:2px;
-    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.6);
+    position:relative; height:100%;
+    background:linear-gradient(90deg, #4edbc6, #a0fff2); border-radius:3px;
+    box-shadow:0 0 10px #8ff0e4, 0 0 20px rgba(0,229,255,0.6);
     width:0%; pointer-events:none; }
+  .video-scrub-progress::after {
+    content:""; position:absolute; right:-5px; top:50%; transform:translateY(-50%);
+    width:10px; height:10px; border-radius:50%; background:#ffffff;
+    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.8); }
   .video-time-tag {
-    font:11px "SF Mono",Menlo,monospace; color:#8ff0e4;
-    letter-spacing:0.05em; text-shadow:0 1px 4px rgba(0,0,0,0.9);
-    white-space:nowrap; opacity:0.9; }
+    font:600 11px "SF Mono",Menlo,monospace; color:#a4fff1;
+    letter-spacing:0.06em; text-shadow:0 0 8px rgba(143,240,228,0.5);
+    white-space:nowrap; opacity:0.95; }
 
   /* MATERIALIZE-AS-LIGHT (Jared's call 8/9): images ARRIVE as hologram
      — teal monochrome light + one scan sweep — then resolve to their
@@ -692,10 +715,11 @@ function makeVideo(src, title) {
     <div class="corner-bl"></div>
     <div class="media-header">
       <div class="title">
-        <span style="font-size:15px;">🎬</span>
+        <span style="font-size:14px;">🎬</span>
         <span>${escT(title || 'Video')}</span>
       </div>
       <div class="actions">
+        <button class="btn-hud holo-toggle-btn" title="Toggle Holographic Mode">✨ HOLO</button>
         <button class="btn-hud video-audio-btn" title="Toggle Sound (Hand Tap / Click)">🔇 MUTED</button>
         <button class="btn-close video-close-btn" title="Close">✕</button>
       </div>
@@ -704,6 +728,7 @@ function makeVideo(src, title) {
       <video src="${escT(src)}" loop autoplay playsinline muted></video>
       <div class="video-play-pulse">▶</div>
       <div class="video-scrubber-bar">
+        <div class="video-play-btn" title="Play / Pause">⏸</div>
         <div class="video-vol-btn" title="Toggle Sound (Mute/Unmute)">🔇</div>
         <div class="video-scrub-track">
           <div class="video-scrub-progress"></div>
@@ -729,8 +754,10 @@ function makeVideo(src, title) {
   const progress = el.querySelector(".video-scrub-progress");
   const timeTag = el.querySelector(".video-time-tag");
   const audioBtn = el.querySelector(".video-audio-btn");
+  const holoBtn = el.querySelector(".holo-toggle-btn");
   const closeBtn = el.querySelector(".video-close-btn");
   const volBtn = el.querySelector(".video-vol-btn");
+  const playBtn = el.querySelector(".video-play-btn");
   const playPulse = el.querySelector(".video-play-pulse");
 
   function setAudio(unmute, showPulse = true) {
@@ -739,10 +766,10 @@ function makeVideo(src, title) {
     video.volume = 1.0;
     if (audioBtn) {
       audioBtn.textContent = video.muted ? "🔇 MUTED" : "🔊 SOUND";
-      audioBtn.style.borderColor = video.muted ? "rgba(143,240,228,0.4)" : "#8ff0e4";
+      audioBtn.style.borderColor = video.muted ? "rgba(143,240,228,0.35)" : "#8ff0e4";
       audioBtn.style.background = video.muted ? "rgba(143,240,228,0.12)" : "rgba(143,240,228,0.32)";
-      audioBtn.style.color = video.muted ? "#8ff0e4" : "#fff";
-      audioBtn.style.boxShadow = video.muted ? "none" : "0 0 12px rgba(143,240,228,0.6)";
+      audioBtn.style.color = video.muted ? "#a0ffef" : "#fff";
+      audioBtn.style.boxShadow = video.muted ? "none" : "0 0 14px rgba(143,240,228,0.6)";
     }
     if (volBtn) {
       volBtn.textContent = video.muted ? "🔇" : "🔊";
@@ -758,9 +785,38 @@ function makeVideo(src, title) {
     setAudio(video.muted, true);
   }
 
+  function togglePlay() {
+    if (video.paused) {
+      video.play().then(() => {
+        if (playBtn) playBtn.textContent = "⏸";
+        if (playPulse) {
+          playPulse.textContent = "▶";
+          playPulse.classList.add("active");
+          setTimeout(() => playPulse.classList.remove("active"), 400);
+        }
+      }).catch(() => {});
+    } else {
+      video.pause();
+      if (playBtn) playBtn.textContent = "▶";
+      if (playPulse) {
+        playPulse.textContent = "⏸";
+        playPulse.classList.add("active");
+        setTimeout(() => playPulse.classList.remove("active"), 400);
+      }
+    }
+  }
+
   item.setAudio = setAudio;
   item.toggleAudio = toggleAudio;
+  item.togglePlay = togglePlay;
 
+  if (holoBtn) {
+    holoBtn.onclick = (e) => {
+      e.stopPropagation();
+      video.classList.toggle("holo-active");
+      holoBtn.classList.toggle("active");
+    };
+  }
   if (audioBtn) {
     audioBtn.onclick = (e) => {
       e.stopPropagation();
@@ -771,6 +827,12 @@ function makeVideo(src, title) {
     volBtn.onclick = (e) => {
       e.stopPropagation();
       toggleAudio();
+    };
+  }
+  if (playBtn) {
+    playBtn.onclick = (e) => {
+      e.stopPropagation();
+      togglePlay();
     };
   }
   if (closeBtn) {
@@ -840,8 +902,12 @@ function makeImage(src, title) {
     <div class="corner-bl"></div>
     <div class="media-header">
       <div class="title">
-        <span style="font-size:15px;">🖼️</span>
+        <span style="font-size:14px;">🖼️</span>
         <span>${escT(title || 'Photo')}</span>
+      </div>
+      <div class="actions">
+        <button class="btn-hud holo-toggle-btn" title="Toggle Holographic Mode">✨ HOLO</button>
+        <button class="btn-close img-close-btn" title="Close">✕</button>
       </div>
     </div>
     <div class="media-body">
@@ -866,6 +932,22 @@ function makeImage(src, title) {
 
   const img = el.querySelector("img");
   const spinner = el.querySelector(".img-spinner");
+  const holoBtn = el.querySelector(".holo-toggle-btn");
+  const closeBtn = el.querySelector(".img-close-btn");
+
+  if (holoBtn) {
+    holoBtn.onclick = (e) => {
+      e.stopPropagation();
+      img.classList.toggle("holo-active");
+      holoBtn.classList.toggle("active");
+    };
+  }
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      killItem(item);
+    };
+  }
 
   img.onload = () => {
     if (spinner) spinner.remove();

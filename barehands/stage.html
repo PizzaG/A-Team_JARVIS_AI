@@ -194,6 +194,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     display:flex; align-items:center; gap:12px;
     border-bottom-left-radius:13px; border-bottom-right-radius:13px;
     z-index:12; user-select:none; }
+  .video-vol-btn {
+    color:#8ff0e4; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:4px; transition:all 0.2s ease; user-select:none; }
+  .video-vol-btn:hover { background:rgba(143,240,228,0.2); text-shadow:0 0 8px #8ff0e4; }
   .video-scrub-track {
     position:relative; flex:1; height:4px;
     background:rgba(143,240,228,0.25); border-radius:2px;
@@ -555,7 +559,7 @@ function bindItemPointerEvents(item) {
   let startTime = 0;
 
   item.el.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".btn-close") || e.target.closest(".btn-hud") || e.target.closest(".video-btn") || e.target.closest(".video-scrub-wrap") || e.target.closest(".close") || e.target.closest(".brow")) return;
+    if (e.target.closest(".btn-close") || e.target.closest(".btn-hud") || e.target.closest(".video-btn") || e.target.closest(".video-scrub-wrap") || e.target.closest(".video-vol-btn") || e.target.closest(".video-scrubber-bar") || e.target.closest(".close") || e.target.closest(".brow")) return;
     isPointerDown = true;
     startX = e.clientX;
     startY = e.clientY;
@@ -691,11 +695,16 @@ function makeVideo(src, title) {
         <span style="font-size:15px;">🎬</span>
         <span>${escT(title || 'Video')}</span>
       </div>
+      <div class="actions">
+        <button class="btn-hud video-audio-btn" title="Toggle Sound (Hand Tap / Click)">🔇 MUTED</button>
+        <button class="btn-close video-close-btn" title="Close">✕</button>
+      </div>
     </div>
     <div class="video-container">
       <video src="${escT(src)}" loop autoplay playsinline muted></video>
       <div class="video-play-pulse">▶</div>
       <div class="video-scrubber-bar">
+        <div class="video-vol-btn" title="Toggle Sound (Mute/Unmute)">🔇</div>
         <div class="video-scrub-track">
           <div class="video-scrub-progress"></div>
         </div>
@@ -719,6 +728,57 @@ function makeVideo(src, title) {
   const track = el.querySelector(".video-scrub-track");
   const progress = el.querySelector(".video-scrub-progress");
   const timeTag = el.querySelector(".video-time-tag");
+  const audioBtn = el.querySelector(".video-audio-btn");
+  const closeBtn = el.querySelector(".video-close-btn");
+  const volBtn = el.querySelector(".video-vol-btn");
+  const playPulse = el.querySelector(".video-play-pulse");
+
+  function setAudio(unmute, showPulse = true) {
+    _ac();
+    video.muted = !unmute;
+    video.volume = 1.0;
+    if (audioBtn) {
+      audioBtn.textContent = video.muted ? "🔇 MUTED" : "🔊 SOUND";
+      audioBtn.style.borderColor = video.muted ? "rgba(143,240,228,0.4)" : "#8ff0e4";
+      audioBtn.style.background = video.muted ? "rgba(143,240,228,0.12)" : "rgba(143,240,228,0.32)";
+      audioBtn.style.color = video.muted ? "#8ff0e4" : "#fff";
+      audioBtn.style.boxShadow = video.muted ? "none" : "0 0 12px rgba(143,240,228,0.6)";
+    }
+    if (volBtn) {
+      volBtn.textContent = video.muted ? "🔇" : "🔊";
+    }
+    if (showPulse && playPulse) {
+      playPulse.textContent = video.muted ? "🔇" : "🔊";
+      playPulse.classList.add("active");
+      setTimeout(() => playPulse.classList.remove("active"), 450);
+    }
+  }
+
+  function toggleAudio() {
+    setAudio(video.muted, true);
+  }
+
+  item.setAudio = setAudio;
+  item.toggleAudio = toggleAudio;
+
+  if (audioBtn) {
+    audioBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleAudio();
+    };
+  }
+  if (volBtn) {
+    volBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleAudio();
+    };
+  }
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      killItem(item);
+    };
+  }
 
   video.ontimeupdate = () => {
     if (!video.duration) return;
@@ -2619,21 +2679,28 @@ function endGrab(c, i, cur) {
                                cur.y - (c.tapY || cur.y));
       if (tMs < 650 && tTrav < 60) openPanel(c);
     }
-    // Bare-Hands Gesture Controls for Video (Play/Pause on screen tap, Close on bar tap):
+    // Bare-Hands Gesture Controls for Video (Play/Pause/Unmute on screen tap, Close/Sound on bar tap):
     if (c.type === "video" && !pullFresh && !c.flying) {
       const vMs = performance.now() - (cur.grabT || 0);
       const vTrav = Math.hypot(cur.x - (c.tapX || cur.x), cur.y - (c.tapY || cur.y));
       if (vMs < 650 && vTrav < 60) {
-        if (c.barGrab) {
+        const audioBtn = c.el.querySelector(".video-audio-btn");
+        const audioR = audioBtn && audioBtn.getBoundingClientRect();
+        const hitAudio = audioR && cur.x >= audioR.left - 24 && cur.x <= audioR.right + 24 &&
+                                   cur.y >= audioR.top - 24 && cur.y <= audioR.bottom + 24;
+        if (hitAudio) {
+          if (c.toggleAudio) c.toggleAudio();
+        } else if (c.barGrab) {
           killItem(c);
         } else {
           const video = c.el.querySelector("video");
-          const btnPlay = c.el.querySelector(".btn-play");
           const playPulse = c.el.querySelector(".video-play-pulse");
           if (video) {
-            if (video.paused) {
+            if (video.muted) {
+              if (c.setAudio) c.setAudio(true);
+              if (video.paused) video.play().catch(() => {});
+            } else if (video.paused) {
               video.play().then(() => {
-                if (btnPlay) btnPlay.textContent = "⏸";
                 if (playPulse) {
                   playPulse.textContent = "▶";
                   playPulse.classList.add("active");
@@ -2642,7 +2709,6 @@ function endGrab(c, i, cur) {
               }).catch(() => {});
             } else {
               video.pause();
-              if (btnPlay) btnPlay.textContent = "▶";
               if (playPulse) {
                 playPulse.textContent = "⏸";
                 playPulse.classList.add("active");

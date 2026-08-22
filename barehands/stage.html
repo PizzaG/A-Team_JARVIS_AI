@@ -273,7 +273,21 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     padding: 6px 12px; border-radius: 6px; cursor: pointer; width: 100%; text-align: center;
     margin-top: 6px; font-weight: bold; font: 11px "SF Mono", Menlo, monospace;
   }
-  #voice-modal .btn-toggle:hover { background: rgba(61, 220, 132, 0.3); }
+  #desktop-exit-btn {
+    position: absolute; top: 14px; left: 16px; z-index: 998;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(10, 20, 24, 0.85); backdrop-filter: blur(10px);
+    border: 1px solid rgba(143, 240, 228, 0.45); border-radius: 20px;
+    padding: 6px 14px; color: #8ff0e4; font: 12px "SF Mono", Menlo, monospace;
+    cursor: pointer; user-select: none; transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  #desktop-exit-btn:hover {
+    border-color: rgba(143, 240, 228, 0.9); background: rgba(16, 32, 38, 0.95);
+    color: #fff; transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 240, 255, 0.3);
+  }
+  body.overlay #desktop-exit-btn { display: none !important; }
   body.overlay #voice-hud, body.overlay #voice-modal { display: none !important; }
 </style>
 <script type="importmap">
@@ -298,13 +312,9 @@ if (location.protocol === "file:") {
     '<div style="font-size:22px;letter-spacing:.18em;color:#6fe3c9;margin-bottom:18px">BAREHANDS NEEDS ITS SERVER</div>' +
     '<p>You opened this file directly, so there is no server behind it. The camera and the gestures will still work, ' +
     'but nothing will ever <b>open</b>: tapping a card asks the server for the file, and there is nothing to ask.</p>' +
-    '<p style="margin-top:16px">Start it from the barehands folder:</p>' +
+    '<p style="margin-top:16px">Start it from the unified server:</p>' +
     '<pre style="background:#052227;border:1px solid #14484f;padding:12px 14px;border-radius:8px;color:#9ff0dd">' +
-    'python3 server.py      <span style="color:#6b9c96"># Windows: python server.py</span></pre>' +
-    '<p style="margin-top:14px">Then open this in Chrome:</p>' +
-    '<pre style="background:#052227;border:1px solid #14484f;padding:12px 14px;border-radius:8px;color:#9ff0dd">' +
-    'http://127.0.0.1:8794/stage.html</pre>' +
-    '<p style="margin-top:18px;color:#7fb3ab">If you changed "port" in barehands.json, use that port instead.</p>' +
+    'start.bat / start.sh</pre>' +
     '</div></body>';
   throw new Error("barehands: opened over file://, server required");
 }
@@ -322,6 +332,10 @@ setTimeout(function () {
 <div id="hint">tap the RING = orbs · tap an orb = its tree · TAP a card = open · pinch-drag = move · hold still ~1s = 3D rotate · two hands = scale · TAP an open item = close · CLAP = clear · V/M toggle Hands-Free · R respawn / C camera / D debug</div>
 <div id="debug"></div>
 <div id="toast"></div>
+
+<div id="desktop-exit-btn" onclick="exitToDesktop()" title="Switch back to Desktop Studio (Alt+H)">
+  <span>🖥️ DESKTOP STUDIO</span>
+</div>
 
 <div id="voice-hud" title="Click to change Voice/Mic Mode (Shortcut: V)">
   <div class="dot" id="vhud-dot"></div>
@@ -1649,6 +1663,56 @@ async function cycleCam() {
   lastVideoTs = -1;
 }
 
+const isEmbedded = (window.parent && window.parent !== window);
+let cameraPaused = isEmbedded;
+
+function pauseCam() {
+  cameraPaused = true;
+  if (cam && cam.srcObject) {
+    try {
+      const tracks = cam.srcObject.getTracks();
+      tracks.forEach(t => {
+        t.stop();
+        t.enabled = false;
+      });
+    } catch (e) {}
+    cam.srcObject = null;
+    cam.src = "";
+  }
+}
+
+async function resumeCam() {
+  cameraPaused = false;
+  lastVideoTs = -1;
+  try {
+    await pickInitialCam();
+  } catch (e) {
+    console.warn("Error resuming camera:", e);
+  }
+}
+
+function exitToDesktop() {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage("exit-barehands", "*");
+  } else {
+    window.location.href = "/";
+  }
+}
+
+window.exitToDesktop = exitToDesktop;
+window.pauseCam = pauseCam;
+window.resumeCam = resumeCam;
+
+document.getElementById("desktop-exit-btn")?.addEventListener("click", exitToDesktop);
+
+window.addEventListener("message", async (e) => {
+  if (e.data === "camera-pause") {
+    pauseCam();
+  } else if (e.data === "camera-resume") {
+    await resumeCam();
+  }
+});
+
 let currentVoiceConfig = { mic_mode: "ptt", ptt_key: "right_alt" };
 
 async function loadVoiceConfig() {
@@ -2158,40 +2222,69 @@ function physics(dt) {
 }
 
 async function boot() {
-  await pickInitialCam();
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
-  landmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: { modelAssetPath:
-      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-      delegate: "GPU" },
-    numHands: 2, runningMode: "VIDEO",
-    // phantom-hand filter (a real-room catch: debug showed a hand with
-    // none in frame — a busy background is full of hand-shaped clutter
-    // and the 0.5 defaults hallucinate there; a ghost hand can grab items
-    // and false-trigger gestures). 0.65 helped but the ghost
-    // survived → 0.7. Ease back toward 0.65 if real-hand pickup ever
-    // feels laggy; past 0.75 real tracking suffers.
-    minHandDetectionConfidence: 0.7,
-    // v3.9.9 (his blur diagnosis: fast hands smear and get DROPPED,
-    // and re-acquisition eats the frames that felt like grab-lag):
-    // KEEP-tracking eased to 0.5 so a latched hand rides through blur;
-    // fresh DETECTION stays 0.7 — the busy-background ghost wall holds.
-    minHandPresenceConfidence: 0.5 });
-  document.getElementById("boot").remove();
+  if (!isEmbedded) {
+    try {
+      await pickInitialCam();
+    } catch (camErr) {
+      console.warn("Camera init deferred/warning:", camErr);
+    }
+  }
+  try {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    landmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+        delegate: "GPU" },
+      numHands: 2, runningMode: "VIDEO",
+      minHandDetectionConfidence: 0.7,
+      minHandPresenceConfidence: 0.5 });
+  } catch (visionErr) {
+    console.warn("Vision task resolver (GPU) failed, trying CPU:", visionErr);
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+          delegate: "CPU" },
+        numHands: 2, runningMode: "VIDEO",
+        minHandDetectionConfidence: 0.7,
+        minHandPresenceConfidence: 0.5 });
+    } catch (cpuErr) {
+      console.warn("Vision task resolver (CPU) error:", cpuErr);
+    }
+  }
+  const bootEl = document.getElementById("boot");
+  if (bootEl) bootEl.remove();
   await loadTree();
   loadVoiceConfig();
   spawnStage();
   toast("barehands v1.0", 2000);  // build fingerprint
+  if (isEmbedded) {
+    try { window.parent.postMessage("stage-ready", "*"); } catch (e) {}
+  }
   let lastT = performance.now();
 
   function frame(now) {
     const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
-    if (cam.currentTime !== lastVideoTs) {
+    if (cameraPaused || !cam || !cam.srcObject) {
+      physics(dt);
+      renderModels();
+      renderRings();
+      requestAnimationFrame(frame);
+      return;
+    }
+    if (landmarker && cam.currentTime !== lastVideoTs) {
       lastVideoTs = cam.currentTime;
-      const res = landmarker.detectForVideo(cam, now);
+      let res = null;
+      try {
+        res = landmarker.detectForVideo(cam, now);
+      } catch (detErr) {
+        res = { landmarks: [] };
+      }
       const seen = new Set();
-      (res.landmarks || []).forEach((lms, i) => {
+      (res && res.landmarks || []).forEach((lms, i) => {
         seen.add(i);
         const cur = getCursor(i);
         const tip = toScreen(lms[8]), thumb = toScreen(lms[4]);

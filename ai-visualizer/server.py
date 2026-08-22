@@ -39,6 +39,45 @@ except ImportError:
 STATES = {"idle", "listening", "thinking", "speaking"}
 WAVEFORM_STALE_S = 0.6
 
+BAREHANDS_DIR = ROOT_DIR / "barehands"
+
+def load_barehands_config():
+    cfg = {"name": "Assistant", "port": 8790, "orbs": []}
+    try:
+        bh_cfg_file = BAREHANDS_DIR / "barehands.json"
+        if bh_cfg_file.exists():
+            cfg.update(json.loads(bh_cfg_file.read_text(encoding="utf-8")))
+    except Exception:
+        pass
+    if not cfg.get("orbs"):
+        cfg["orbs"] = [
+            {"title": "Notes", "path": "sample-notes", "kind": "notes"},
+            {"title": "Props", "path": "media", "kind": "media"},
+        ]
+    for orb in cfg["orbs"]:
+        orb["path"] = str(Path(str(orb.get("path", ""))).expanduser())
+    return cfg
+
+BAREHANDS_CONFIG = load_barehands_config()
+
+def orb_root(i):
+    """Resolve a notes orb's jail root, or None."""
+    try:
+        orb = BAREHANDS_CONFIG["orbs"][int(i)]
+        assert orb.get("kind") == "notes"
+        p = Path(orb["path"])
+        if not p.is_absolute():
+            p = BAREHANDS_DIR / p
+        return p.resolve()
+    except Exception:
+        return None
+
+_BAREHANDS_STATE = b"{}"
+_CMDS = []
+_ALLOWED_CMDS = ("add_img", "add_card", "clear", "reset", "hand", "give",
+                 "yank", "hover", "scroll_note", "widget", "explode", "assemble",
+                 "present")
+
 # Whisper STT model for browser audio transcription
 WHISPER_MODEL = None
 WHISPER_LOCK = threading.Lock()
@@ -305,6 +344,10 @@ def extract_raw_tool_calls(text: str) -> list[dict]:
     return []
 
 class UnifiedHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Silence routine 250ms polling HTTP access logs to keep the console clean
+        pass
+
     def do_OPTIONS(self):
         try:
             self.send_response(200)
@@ -319,9 +362,13 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         url_path = self.path.split("?")[0]
         try:
             if url_path == "/state":
-                self._send_json(read_bus())
+                if "role=render" in self.path or "scene=1" in self.path:
+                    self._send_bytes(_BAREHANDS_STATE, "application/json")
+                else:
+                    self._send_json(read_bus())
             elif url_path == "/config":
                 cfg = load_config()
+                bh_cfg = load_barehands_config()
                 out = {
                     "name": cfg["name"],
                     "badge": cfg["badge"],
@@ -329,9 +376,111 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                     "model": cfg["model"],
                     "permission_mode": cfg["permission_mode"],
                     "thinking_sound": bool(cfg.get("thinking_sound", False)),
-                    "faces": list_faces()
+                    "faces": list_faces(),
+                    "mic_mode": cfg.get("mic_mode", "ptt"),
+                    "ptt_key": cfg.get("ptt_key", "right_alt"),
+                    "orbs": [{"title": o.get("title", "?"), "kind": o.get("kind", "notes")} for o in bh_cfg.get("orbs", [])]
                 }
                 self._send_json(out)
+            elif url_path == "/api/voice-config":
+                cfg = load_config()
+                self._send_json({
+                    "mic_mode": cfg.get("mic_mode", "ptt"),
+                    "ptt_key": cfg.get("ptt_key", "right_alt")
+                })
+            elif url_path == "/orb":
+                s_dir = BAREHANDS_DIR / "state"
+                out = {"state": "idle", "mood": "green", "wave": None}
+                bus_st = read_bus()
+                out["state"] = bus_st.get("state", "idle")
+                try:
+                    m_file = s_dir / "mood.json"
+                    if m_file.exists():
+                        m = json.loads(m_file.read_text(encoding="utf-8"))
+                        if time.time() - float(m.get("ts", 0)) < 45.0:
+                            out["mood"] = m.get("mood", "green")
+                except Exception:
+                    pass
+                if out["state"] == "speaking":
+                    if bus_st.get("samples"):
+                        out["wave"] = [float(s) / 9000.0 for s in bus_st["samples"][:64]]
+                    else:
+                        try:
+                            w_file = s_dir / "wave.json"
+                            if w_file.exists():
+                                w = json.loads(w_file.read_text(encoding="utf-8"))
+                                if time.time() - float(w.get("ts", 0)) < 0.6:
+                                    out["wave"] = w.get("samples", [])[:64]
+                        except Exception:
+                            pass
+                self._send_json(out)
+            elif url_path.startswith("/tree"):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                idx = (q.get("orb") or ["0"])[0]
+                root = orb_root(idx)
+                if root is None or not root.is_dir():
+                    self._send_json({"name": "?", "notes": [], "dirs": []}, 404)
+                    return
+
+                def walk(d):
+                    out = {"name": d.name, "notes": [], "dirs": []}
+                    for p in sorted(d.iterdir()):
+                        if p.name.startswith("."):
+                            continue
+                        if p.is_dir():
+                            sub = walk(p)
+                            if sub["notes"] or sub["dirs"]:
+                                out["dirs"].append(sub)
+                        elif p.suffix == ".md" and p.name != "CLAUDE.md":
+                            out["notes"].append({
+                                "title": p.stem,
+                                "file": f"{int(idx)}/{p.relative_to(root).as_posix()}"
+                            })
+                    return out
+
+                try:
+                    tree = walk(root)
+                    tree["name"] = BAREHANDS_CONFIG["orbs"][int(idx)].get("title", tree["name"])
+                    self._send_json(tree)
+                except Exception:
+                    self._send_json({"name": "?", "notes": [], "dirs": []}, 500)
+            elif url_path == "/props":
+                EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".webm", ".glb", ".gltf"}
+                media_root = (BAREHANDS_DIR / "media").resolve()
+
+                def walkm(d):
+                    out = {"name": d.name, "items": [], "dirs": []}
+                    for p in sorted(d.iterdir()):
+                        if p.name.startswith("."):
+                            continue
+                        if p.is_dir():
+                            sub = walkm(p)
+                            if sub["items"] or sub["dirs"]:
+                                out["dirs"].append(sub)
+                        elif p.suffix.lower() in EXTS:
+                            out["items"].append(str(p.relative_to(media_root)).replace("\\", "/"))
+                    return out
+
+                try:
+                    tree = walkm(media_root)
+                    tree["name"] = "Props"
+                    self._send_json(tree)
+                except Exception:
+                    self._send_json({"name": "Props", "items": [], "dirs": []}, 500)
+            elif url_path.startswith("/note"):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                rel = (q.get("f") or [""])[0]
+                idx, _, rel = rel.partition("/")
+                root = orb_root(idx)
+                if root is None:
+                    self._send_text("Not found", 404)
+                    return
+                target = (root / rel).resolve()
+                if (root not in target.parents) or target.suffix != ".md" or not target.is_file():
+                    self._send_text("Not found", 404)
+                    return
+                body = target.read_bytes()
+                self._send_bytes(body, "text/plain; charset=utf-8")
             elif url_path == "/api/models":
                 cfg = load_config()
                 models = get_ollama_models(cfg.get("ollama_url", "http://127.0.0.1:11434"))
@@ -372,6 +521,40 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             raw_bytes = self.rfile.read(length) if length > 0 else b""
 
+            if url_path == "/state":
+                global _BAREHANDS_STATE
+                _BAREHANDS_STATE = raw_bytes if raw_bytes else b"{}"
+                out = json.dumps(_CMDS[:8]).encode("utf-8")
+                del _CMDS[:8]
+                self._send_bytes(out, "application/json")
+                return
+
+            if url_path == "/cmd":
+                try:
+                    cmd = json.loads(raw_bytes.decode("utf-8")) if raw_bytes else {}
+                    assert cmd.get("a") in _ALLOWED_CMDS
+                    if cmd["a"] in ("add_img", "hand", "give", "present") and cmd.get("src"):
+                        rel = str(cmd.get("src", "")).lstrip("/")
+                        if rel.startswith("media/"):
+                            rel = rel[6:]
+                        media = (BAREHANDS_DIR / "media").resolve()
+                        target = (media / rel).resolve()
+                        if media not in target.parents or not target.is_file():
+                            name = Path(rel).name.lower()
+                            hits = [p for p in media.rglob("*")
+                                    if p.is_file() and p.name.lower() == name] if name else []
+                            if len(hits) != 1:
+                                raise ValueError("not in the media airlock")
+                            target = hits[0]
+                        cmd["src"] = "/media/" + target.relative_to(media).as_posix()
+                    _CMDS.append(cmd)
+                    self.send_response(204)
+                    self.end_headers()
+                except Exception:
+                    self.send_response(400)
+                    self.end_headers()
+                return
+
             if url_path == "/api/transcribe":
                 model = get_whisper()
                 if not model:
@@ -391,7 +574,7 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             except Exception:
                 data = {}
 
-            if url_path == "/api/config":
+            if url_path in ("/api/config", "/api/voice-config"):
                 updated = save_config(data)
                 self._send_json({"status": "success", "config": updated})
 
@@ -604,17 +787,34 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             return False
 
     def _static(self, path):
-        if path == "/":
-            path = "/index.html"
-        target = (HERE / path.lstrip("/")).resolve()
-        if target != HERE and HERE not in target.parents:
-            self._send_text("Not found", 404)
-            return
+        if path in ("/", "/index.html"):
+            target = HERE / "index.html"
+        elif path == "/stage.html":
+            target = BAREHANDS_DIR / "stage.html"
+        elif path.startswith("/media/"):
+            rel = path[7:].lstrip("/")
+            target = (BAREHANDS_DIR / "media" / rel).resolve()
+            if target != (BAREHANDS_DIR / "media") and (BAREHANDS_DIR / "media") not in target.parents:
+                self._send_text("Not found", 404)
+                return
+        elif path.startswith("/sample-notes/"):
+            rel = path[14:].lstrip("/")
+            target = (BAREHANDS_DIR / "sample-notes" / rel).resolve()
+        else:
+            target = (HERE / path.lstrip("/")).resolve()
+            if not target.is_file():
+                target = (BAREHANDS_DIR / path.lstrip("/")).resolve()
+            if (target != HERE and HERE not in target.parents and
+                target != BAREHANDS_DIR and BAREHANDS_DIR not in target.parents):
+                self._send_text("Not found", 404)
+                return
+
         if target.is_dir():
             target = target / "index.html"
         if not target.is_file():
             self._send_text("Not found", 404)
             return
+
         ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         self._send_bytes(target.read_bytes(), ctype)
 

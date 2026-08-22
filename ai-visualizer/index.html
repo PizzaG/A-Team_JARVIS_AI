@@ -407,6 +407,70 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     outline: none;
   }
   .form-input:focus { border-color: var(--green); }
+
+  /* View: Bare Hands Air Board */
+  #view-barehands {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 500;
+    display: none;
+    flex-direction: column;
+  }
+  .barehands-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #000;
+  }
+
+  /* Floating Mode Switcher */
+  .floating-mode-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(6, 20, 14, 0.88);
+    backdrop-filter: blur(12px);
+    border: 1.5px solid var(--green);
+    color: var(--green);
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 16px rgba(61, 220, 132, 0.25);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+  }
+  .floating-mode-btn:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.8), 0 0 24px rgba(61, 220, 132, 0.6);
+    transform: translateY(-2px) scale(1.03);
+  }
+  .floating-mode-btn .f-icon {
+    font-size: 16px;
+  }
+  .floating-mode-btn.in-barehands {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(6, 18, 24, 0.9);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.35);
+  }
+  .floating-mode-btn.in-barehands:hover {
+    background: var(--cyan);
+    color: #000;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.8), 0 0 28px rgba(0, 240, 255, 0.7);
+  }
 </style>
 </head>
 <body>
@@ -436,12 +500,17 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       <button class="tab-btn active" onclick="showTab('dashboard')">TERMINAL & FACE</button>
       <button class="tab-btn" onclick="showTab('vault')">MEMORY VAULT</button>
       <button class="tab-btn" onclick="showTab('settings')">SETTINGS</button>
-      <a href="http://127.0.0.1:8794/stage.html" target="_blank" class="tab-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; border-color:rgba(61,220,132,0.3);" title="Open Barehands Air Board in Chrome">BARE HANDS ↗</a>
+      <button class="tab-btn" id="nav-mode-btn" onclick="toggleBareHandsMode()" style="border-color:rgba(61,220,132,0.4); color:#8ff0e4;" title="Toggle Bare Hands Hologram Mode (Alt+H / F9)">🖐️ AIR BOARD MODE</button>
     </div>
   </div>
 </header>
 
 <main>
+  <!-- VIEW 4: BARE HANDS AIR BOARD (HOLOGRAPHIC STAGE) -->
+  <div id="view-barehands">
+    <iframe id="barehands-frame" class="barehands-frame" src="/stage.html" allow="camera; microphone; display-capture; autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
   <!-- VIEW 1: DASHBOARD (VISUALIZER + CHAT) -->
   <div id="view-dashboard">
     <div class="face-pane">
@@ -549,9 +618,89 @@ let activeNote = "SOUL.md";
 let recognition = null;
 let isRecording = false;
 
-// 1. Initialize Tabs & Config
+// 1. Initialize Tabs, Modes & Config
+let currentMode = "desktop"; // "desktop" | "barehands"
+
+function toggleBareHandsMode() {
+  if (currentMode === "desktop") {
+    setMode("barehands");
+  } else {
+    setMode("desktop");
+  }
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  const barehandsView = document.getElementById("view-barehands");
+  const dashView = document.getElementById("view-dashboard");
+  const vaultView = document.getElementById("view-vault");
+  const settingsView = document.getElementById("view-settings");
+  const floatBtn = document.getElementById("floating-mode-btn");
+  const floatText = document.getElementById("floating-btn-text");
+  const floatIcon = floatBtn ? floatBtn.querySelector(".f-icon") : null;
+  const navBtn = document.getElementById("nav-mode-btn");
+  const iframe = document.getElementById("barehands-frame");
+
+  if (mode === "barehands") {
+    // Hide desktop views
+    if (dashView) dashView.style.display = "none";
+    if (vaultView) vaultView.style.display = "none";
+    if (settingsView) settingsView.style.display = "none";
+    document.querySelectorAll(".nav-tabs .tab-btn").forEach(b => {
+      if (b.id !== "nav-mode-btn") b.classList.remove("active");
+    });
+
+    // Show barehands
+    if (barehandsView) barehandsView.style.display = "flex";
+    if (navBtn) navBtn.classList.add("active");
+    if (floatBtn) floatBtn.classList.add("in-barehands");
+    if (floatText) floatText.textContent = "DESKTOP STUDIO";
+    if (floatIcon) floatIcon.textContent = "🖥️";
+
+    // Wake up camera in barehands iframe
+    if (iframe && iframe.contentWindow) {
+      try { iframe.contentWindow.postMessage("camera-resume", "*"); } catch (e) {}
+    }
+  } else {
+    // Return to desktop
+    if (barehandsView) barehandsView.style.display = "none";
+    if (navBtn) navBtn.classList.remove("active");
+    if (floatBtn) floatBtn.classList.remove("in-barehands");
+    if (floatText) floatText.textContent = "AIR BOARD MODE";
+    if (floatIcon) floatIcon.textContent = "🖐️";
+
+    // Put camera to sleep in barehands iframe
+    if (iframe && iframe.contentWindow) {
+      try { iframe.contentWindow.postMessage("camera-pause", "*"); } catch (e) {}
+    }
+
+    // Default to dashboard tab
+    showTab("dashboard");
+  }
+}
+
 function showTab(tab) {
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  if (currentMode === "barehands") {
+    const iframe = document.getElementById("barehands-frame");
+    if (iframe && iframe.contentWindow) {
+      try { iframe.contentWindow.postMessage("camera-pause", "*"); } catch (e) {}
+    }
+    const barehandsView = document.getElementById("view-barehands");
+    if (barehandsView) barehandsView.style.display = "none";
+    const floatBtn = document.getElementById("floating-mode-btn");
+    const floatText = document.getElementById("floating-btn-text");
+    const floatIcon = floatBtn ? floatBtn.querySelector(".f-icon") : null;
+    const navBtn = document.getElementById("nav-mode-btn");
+    if (navBtn) navBtn.classList.remove("active");
+    if (floatBtn) floatBtn.classList.remove("in-barehands");
+    if (floatText) floatText.textContent = "AIR BOARD MODE";
+    if (floatIcon) floatIcon.textContent = "🖐️";
+    currentMode = "desktop";
+  }
+
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    if (b.id !== "nav-mode-btn") b.classList.remove("active");
+  });
   document.querySelectorAll("#view-dashboard, #view-vault, #view-settings").forEach(v => v.style.display = "none");
 
   if (tab === "dashboard") {
@@ -1178,7 +1327,28 @@ function initPttButton() {
   pttBtn.addEventListener("touchend", up, {passive: false});
 }
 
+// Listen for messages from inside barehands iframe (e.g. exit button clicked or stage loaded)
+window.addEventListener("message", (e) => {
+  if (e.data === "exit-barehands" || e.data === "toggle-mode") {
+    toggleBareHandsMode();
+  } else if (e.data === "stage-ready") {
+    const iframe = document.getElementById("barehands-frame");
+    if (iframe && iframe.contentWindow) {
+      if (currentMode === "barehands") {
+        try { iframe.contentWindow.postMessage("camera-resume", "*"); } catch (err) {}
+      } else {
+        try { iframe.contentWindow.postMessage("camera-pause", "*"); } catch (err) {}
+      }
+    }
+  }
+});
+
 window.addEventListener("keydown", (e) => {
+  if ((e.altKey && (e.key === "h" || e.key === "H")) || e.key === "F9") {
+    e.preventDefault();
+    toggleBareHandsMode();
+    return;
+  }
   const activeKey = document.getElementById("cfg-ptt-key") ? document.getElementById("cfg-ptt-key").value : "right_alt";
   if (document.activeElement === userInput && activeKey !== "right_alt" && activeKey !== "space") {
     return;
@@ -1208,5 +1378,12 @@ window.addEventListener("DOMContentLoaded", () => {
   initPttButton();
 });
 </script>
+
+<!-- Floating Mode Switcher Button -->
+<button id="floating-mode-btn" class="floating-mode-btn" onclick="toggleBareHandsMode()" title="Toggle Air Board / Bare Hands Mode (Alt+H / F9)">
+  <span class="f-icon">🖐️</span>
+  <span class="f-text" id="floating-btn-text">AIR BOARD MODE</span>
+</button>
+
 </body>
 </html>

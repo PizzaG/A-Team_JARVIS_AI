@@ -63,5 +63,25 @@
     "role": "assistant",
     "content": "You're welcome. Let me know if you need any assistance.",
     "ts": 1787395308.437927
+  },
+  {
+    "role": "user",
+    "content": "Thank you.",
+    "ts": 1787396331.85697
+  },
+  {
+    "role": "assistant",
+    "content": "You're welcome! How can I assist you today?",
+    "ts": 1787396332.527744
+  },
+  {
+    "role": "user",
+    "content": "What's your name?",
+    "ts": 1787396347.7530873
+  },
+  {
+    "role": "assistant",
+    "content": "I'm JARVIS. How can I help you?",
+    "ts": 1787396348.4659486
   }
 ]

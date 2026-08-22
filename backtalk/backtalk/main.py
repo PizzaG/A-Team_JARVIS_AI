@@ -549,6 +549,7 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
     t0 = time.time()
     first = True
     batch: list[str] = []
+    full_reply_parts: list[str] = []
 
     def emit(raw: str):
         nonlocal first, batch
@@ -557,6 +558,7 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
         s = raw.replace("`", "").replace("<<", "").replace(">>", "").strip()
         if not s:
             return
+        full_reply_parts.append(s)
         if first:
             log(f"[{NAME}] ({time.time()-t0:.1f}s to first) {s}")
             mouth.say_chunk(s)
@@ -573,6 +575,8 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
             emit(sentence)
         if batch:
             mouth.say_chunk(" ".join(batch))
+        if full_reply_parts:
+            signals.append_chat("assistant", " ".join(full_reply_parts))
         if first:
             # Zero sentences yielded (brain error / empty turn): nothing
             # will ever dequeue, so nothing resets the bus — park it here.
@@ -873,6 +877,7 @@ async def amain():
         if verb:
             await run_console(verb)
             return True
+        signals.append_chat("user", text)
         signals.set_state("thinking")
         signals.static_start()
         # Clean the pipe: drain the interrupted turn's leftovers so the
@@ -902,7 +907,34 @@ async def amain():
         mic_gate = (lambda: _MIC["btn"]
                     or (not barge_in and mouth.speaking))
         mic_fails = 0
+        _last_cfg_mtime = 0.0
+
+        def _check_config_sync():
+            nonlocal _last_cfg_mtime
+            try:
+                from backtalk.config import CONFIG_PATH
+                if CONFIG_PATH.exists():
+                    mtime = CONFIG_PATH.stat().st_mtime
+                    if _last_cfg_mtime == 0.0:
+                        _last_cfg_mtime = mtime
+                    elif mtime > _last_cfg_mtime:
+                        _last_cfg_mtime = mtime
+                        new_data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+                        new_mode = new_data.get("mic_mode")
+                        if new_mode in ("open", "ptt") and new_mode != _MIC["mode"]:
+                            _MIC["mode"] = new_mode
+                            _MIC["gen"] += 1
+                            log(f"[config-sync] mic_mode updated to {new_mode}")
+                        new_key = new_data.get("ptt_key")
+                        if new_key and new_key != CFG.get("ptt_key"):
+                            CFG["ptt_key"] = new_key
+                            ptt.set_key(new_key)
+                            log(f"[config-sync] ptt_key updated to {new_key}")
+            except Exception as e:
+                pass
+
         while True:
+            _check_config_sync()
             if _MIC["gen"] != mic_gen_seen:
                 mic_gen_seen = _MIC["gen"]
                 # consume futures that completed under the old mode so
@@ -922,10 +954,12 @@ async def amain():
                     mic_fut = loop.run_in_executor(
                         None, lambda g=g: (g, ears.listen_once(
                             gate=mic_gate,
-                            abort=lambda: _MIC["gen"] != g)))
+                            abort=lambda: _MIC["gen"] != g or _MIC["btn"])))
                 waiters.add(mic_fut)
             done, _ = await asyncio.wait(
-                waiters, return_when=asyncio.FIRST_COMPLETED)
+                waiters, timeout=0.5, return_when=asyncio.FIRST_COMPLETED)
+            if not done:
+                continue
             if typed_fut in done:
                 text = typed_fut.result(); typed_fut = None
                 if text and not await handle(text):

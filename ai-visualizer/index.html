@@ -446,15 +446,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   <div id="view-dashboard">
     <div class="face-pane">
       <iframe id="face-frame" class="face-frame" src="faces/board/index.html"></iframe>
-      <div class="face-overlay">
-        STATE: <b id="face-state-label">IDLE</b> | PRESS <b id="talk-key-label">HOME</b> TO TALK
+      <div class="face-overlay" id="face-overlay-text">
+        STATE: <b id="face-state-label">IDLE</b> | <span id="talk-instruction">HOLD <b id="talk-key-label">RIGHT ALT</b> TO TALK</span>
       </div>
     </div>
 
     <div class="chat-pane">
       <div class="chat-header">
         <span>INTERACTIVE AGENT TERMINAL</span>
-        <button class="chat-clear-btn" onclick="clearChat()">CLEAR</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="chat-clear-btn" id="voice-out-btn" onclick="toggleTts()" title="Toggle Voice Audio Output">🔊 VOICE: ON</button>
+          <button class="chat-clear-btn" onclick="clearChat()">CLEAR</button>
+        </div>
       </div>
 
       <div class="chat-messages" id="chat-stream">
@@ -466,7 +469,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       <div class="chat-input-box">
         <textarea id="user-input" placeholder="Type a message or command (Enter to send, Shift+Enter for newline)..." rows="1"></textarea>
-        <button class="btn mic-btn" id="mic-toggle-btn" title="Voice Input" onclick="toggleWebMic()">MIC</button>
+        <button class="btn ptt-btn" id="ptt-hold-btn" title="Hold down to speak (Mouse or Keyboard)">🎙️ HOLD TO TALK</button>
+        <button class="btn mic-btn" id="mic-toggle-btn" title="Click to Toggle Mic" onclick="toggleWebMic()">MIC</button>
         <button class="btn" id="send-btn" onclick="sendMessage()">SEND</button>
       </div>
     </div>
@@ -509,6 +513,28 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         <select class="form-input select-box" id="cfg-perm-mode">
           <option value="ask">Ask for confirmation before file edits & commands</option>
           <option value="bypassPermissions">Auto-approve all tool actions</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">MICROPHONE / VOICE MODE</label>
+        <select class="form-input select-box" id="cfg-mic-mode" onchange="onMicModeChange()">
+          <option value="ptt">Push-to-Talk (Hold key to speak)</option>
+          <option value="open">Hands-Free (Always listening / Open Mic)</option>
+        </select>
+      </div>
+      <div class="form-group" id="cfg-ptt-key-group">
+        <label class="form-label">PUSH-TO-TALK KEY</label>
+        <select class="form-input select-box" id="cfg-ptt-key">
+          <option value="right_alt">Right Alt / AltGr (Recommended for Laptops)</option>
+          <option value="space">Spacebar (Hold to Talk)</option>
+          <option value="right_ctrl">Right Ctrl (Bottom-right)</option>
+          <option value="right_shift">Right Shift</option>
+          <option value="`">Backtick ( ` ) [Below Esc]</option>
+          <option value="\">Backslash ( \ )</option>
+          <option value="home">Home Key</option>
+          <option value="end">End Key</option>
+          <option value="f8">F8 Key</option>
+          <option value="f12">F12 Key</option>
         </select>
       </div>
       <button class="btn" onclick="saveSettings()">SAVE SETTINGS</button>
@@ -569,9 +595,42 @@ async function initApp() {
       modelSelect.add(opt1);
       cfgModelSelect.add(opt2);
     });
-
+    updateTalkKeyDisplay(cfg.mic_mode || "ptt", cfg.ptt_key || "right_alt");
   } catch (e) {
     console.error("Error loading config:", e);
+  }
+}
+
+function formatKeyName(key) {
+  const map = {
+    "right_alt": "RIGHT ALT",
+    "right_ctrl": "RIGHT CTRL",
+    "right_shift": "RIGHT SHIFT",
+    "`": "BACKTICK (` )",
+    "\\": "BACKSLASH ( \\ )",
+    "home": "HOME",
+    "end": "END",
+    "f8": "F8",
+    "f12": "F12"
+  };
+  return map[key] || (key || "").replace("_", " ").toUpperCase();
+}
+
+function onMicModeChange() {
+  const mode = document.getElementById("cfg-mic-mode").value;
+  const keyGroup = document.getElementById("cfg-ptt-key-group");
+  if (keyGroup) {
+    keyGroup.style.display = mode === "open" ? "none" : "block";
+  }
+}
+
+function updateTalkKeyDisplay(micMode, pttKey) {
+  const instructionEl = document.getElementById("talk-instruction");
+  if (!instructionEl) return;
+  if (micMode === "open") {
+    instructionEl.innerHTML = `🎧 <b>HANDS-FREE LISTENING</b>`;
+  } else {
+    instructionEl.innerHTML = `HOLD <b id="talk-key-label">${formatKeyName(pttKey)}</b> TO TALK`;
   }
 }
 
@@ -592,11 +651,44 @@ document.getElementById("model-select").addEventListener("change", async (e) => 
 // Poll state for UI overlay
 setInterval(async () => {
   try {
+    if (isPttHeld || isRecording) return;
     const res = await fetch("/state");
     const st = await res.json();
-    document.getElementById("face-state-label").textContent = (st.state || "IDLE").toUpperCase();
+    const stateName = (st.state || "IDLE").toUpperCase();
+    const lbl = document.getElementById("face-state-label");
+    if (lbl) {
+      lbl.textContent = stateName;
+      if (stateName === "LISTENING") lbl.style.color = "var(--cyan)";
+      else if (stateName === "THINKING") lbl.style.color = "#bd93f9";
+      else if (stateName === "SPEAKING") lbl.style.color = "var(--green)";
+      else lbl.style.color = "var(--green)";
+    }
   } catch(e) {}
-}, 500);
+}, 250);
+
+// Poll conversation history from voice line
+let seenHistoryCount = 0;
+setInterval(async () => {
+  try {
+    const res = await fetch("/api/history");
+    const data = await res.json();
+    const history = data.history || [];
+    if (history.length > seenHistoryCount) {
+      const newItems = history.slice(seenHistoryCount);
+      newItems.forEach(item => {
+        const isUser = item.role === "user";
+        const speaker = isUser ? "YOU" : (document.getElementById("header-name")?.textContent || "JARVIS");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `msg ${isUser ? "user" : "assistant"}`;
+        const cleanContent = escapeHtml(item.content).replace(/\n/g, "<br>");
+        msgDiv.innerHTML = `<div class="speaker">${escapeHtml(speaker)}</div>${cleanContent}`;
+        chatStream.appendChild(msgDiv);
+        chatStream.scrollTop = chatStream.scrollHeight;
+      });
+      seenHistoryCount = history.length;
+    }
+  } catch(e) {}
+}, 800);
 
 // 3. Chat System & Streaming
 const chatStream = document.getElementById("chat-stream");
@@ -609,10 +701,58 @@ userInput.addEventListener("keydown", (e) => {
   }
 });
 
+let ttsEnabled = true;
+let synthVoices = [];
+
+function initVoices() {
+  if ('speechSynthesis' in window) {
+    synthVoices = window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      synthVoices = window.speechSynthesis.getVoices();
+    };
+  }
+}
+initVoices();
+
+function toggleTts() {
+  ttsEnabled = !ttsEnabled;
+  const btn = document.getElementById("voice-out-btn");
+  if (btn) {
+    btn.textContent = ttsEnabled ? "🔊 VOICE: ON" : "🔇 VOICE: OFF";
+    btn.style.color = ttsEnabled ? "var(--green)" : "var(--dim)";
+  }
+  if (!ttsEnabled) stopSpeaking();
+}
+
+function speakSentence(text) {
+  if (!ttsEnabled || !('speechSynthesis' in window)) return;
+  const clean = text.replace(/[*#`_~]/g, '').replace(/<[^>]*>/g, '').trim();
+  if (!clean || clean.length < 2) return;
+  try {
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.05;
+    u.pitch = 1.0;
+    if (!synthVoices.length) synthVoices = window.speechSynthesis.getVoices();
+    const voice = synthVoices.find(v => (v.name.includes("Natural") || v.name.includes("David") || v.name.includes("George") || v.name.includes("Guy") || v.name.includes("Mark")) && v.lang.startsWith("en")) 
+               || synthVoices.find(v => v.lang.startsWith("en"));
+    if (voice) u.voice = voice;
+    window.speechSynthesis.speak(u);
+  } catch (e) {
+    console.warn("TTS Error:", e);
+  }
+}
+
+function stopSpeaking() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
 async function sendMessage() {
   const text = userInput.value.trim();
   if (!text) return;
   userInput.value = "";
+  stopSpeaking();
 
   // Append user message
   const userDiv = document.createElement("div");
@@ -630,6 +770,8 @@ async function sendMessage() {
   const contentSpan = asstDiv.querySelector(".content");
 
   const model = document.getElementById("model-select").value;
+  let sentenceBuf = "";
+  const sentenceRe = /(?<=[.!?\n])\s+/;
 
   try {
     const resp = await fetch("/api/chat", {
@@ -656,6 +798,14 @@ async function sendMessage() {
         if (ev.type === "delta") {
           contentSpan.textContent += ev.content;
           chatStream.scrollTop = chatStream.scrollHeight;
+          sentenceBuf += ev.content;
+          while (true) {
+            const m = sentenceBuf.match(sentenceRe);
+            if (!m) break;
+            const s = sentenceBuf.slice(0, m.index + m[0].length).trim();
+            sentenceBuf = sentenceBuf.slice(m.index + m[0].length);
+            if (s) speakSentence(s);
+          }
         } else if (ev.type === "tool_start") {
           const tCard = document.createElement("div");
           tCard.className = "tool-card";
@@ -671,12 +821,16 @@ async function sendMessage() {
         }
       }
     }
+    if (sentenceBuf.trim()) {
+      speakSentence(sentenceBuf.trim());
+    }
   } catch (e) {
     contentSpan.textContent += `\n[Error: ${e.message}]`;
   }
 }
 
 async function clearChat() {
+  stopSpeaking();
   await fetch("/api/clear", { method: "POST" });
   chatStream.innerHTML = "";
 }
@@ -734,6 +888,10 @@ async function loadSettings() {
   const cfg = await cfgRes.json();
   document.getElementById("cfg-name").value = cfg.name || "JARVIS";
   document.getElementById("cfg-perm-mode").value = cfg.permission_mode || "ask";
+  document.getElementById("cfg-mic-mode").value = cfg.mic_mode || "ptt";
+  document.getElementById("cfg-ptt-key").value = cfg.ptt_key || "right_alt";
+  onMicModeChange();
+  updateTalkKeyDisplay(cfg.mic_mode || "ptt", cfg.ptt_key || "right_alt");
 }
 
 async function saveSettings() {
@@ -741,6 +899,8 @@ async function saveSettings() {
   const model = document.getElementById("cfg-model-select").value;
   const perm = document.getElementById("cfg-perm-mode").value;
   const ollamaUrl = document.getElementById("cfg-ollama-url").value.trim();
+  const micMode = document.getElementById("cfg-mic-mode").value;
+  const pttKey = document.getElementById("cfg-ptt-key").value;
 
   await fetch("/api/config", {
     method: "POST",
@@ -749,58 +909,304 @@ async function saveSettings() {
       name: name,
       model: model,
       permission_mode: perm,
-      ollama_url: ollamaUrl
+      ollama_url: ollamaUrl,
+      mic_mode: micMode,
+      ptt_key: pttKey
     })
   });
   document.getElementById("header-name").textContent = name.toUpperCase();
+  updateTalkKeyDisplay(micMode, pttKey);
   alert("Settings saved!");
 }
 
-// 6. Voice Input (Web Speech API)
-function toggleWebMic() {
-  const micBtn = document.getElementById("mic-toggle-btn");
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert("Speech recognition not supported in this browser. You can use the terminal push-to-talk voice line!");
-    return;
+// 6. Voice Input (Web Audio API PCM Capture + Whisper STT)
+let isRecording = false;
+let isPttHeld = false;
+let audioCtx = null;
+let micStream = null;
+let pcmProcessor = null;
+let pcmBuffers = [];
+
+function matchesBrowserKey(e, pttKey) {
+  const code = (e.code || "").toLowerCase();
+  const key = (e.key || "").toLowerCase();
+  const target = (pttKey || "right_alt").toLowerCase();
+
+  if (target === "right_alt" || target === "alt_r" || target === "altgr") {
+    return code === "altright" || key === "altgraph" || (e.altKey && e.location === 2) || (key === "alt" && e.location === 2);
   }
-
-  if (isRecording) {
-    recognition.stop();
-    isRecording = false;
-    micBtn.classList.remove("active");
-    return;
+  if (target === "space" || target === "spacebar") {
+    return code === "space" || key === " " || key === "spacebar" || e.keyCode === 32;
   }
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-
-  recognition.onstart = () => {
-    isRecording = true;
-    micBtn.classList.add("active");
-  };
-
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    userInput.value = transcript;
-    sendMessage();
-  };
-
-  recognition.onend = () => {
-    isRecording = false;
-    micBtn.classList.remove("active");
-  };
-
-  recognition.onerror = () => {
-    isRecording = false;
-    micBtn.classList.remove("active");
-  };
-
-  recognition.start();
+  if (target === "left_alt" || target === "alt_l" || target === "alt") {
+    return code === "altleft" || (e.altKey && (e.location === 1 || e.location === 0)) || key === "alt";
+  }
+  if (target === "right_ctrl" || target === "ctrl_r") {
+    return code === "controlright" || (e.ctrlKey && e.location === 2);
+  }
+  if (target === "left_ctrl" || target === "ctrl_l" || target === "ctrl") {
+    return code === "controlleft" || (e.ctrlKey && e.location === 1);
+  }
+  if (target === "right_shift" || target === "shift_r") {
+    return code === "shiftright" || (e.shiftKey && e.location === 2);
+  }
+  if (target === "left_shift" || target === "shift_l" || target === "shift") {
+    return code === "shiftleft" || (e.shiftKey && e.location === 1);
+  }
+  if (target === "`" || target === "backtick") {
+    return code === "backquote" || key === "`";
+  }
+  if (target === "\\" || target === "backslash") {
+    return code === "backslash" || key === "\\";
+  }
+  if (target === "home") return code === "home" || key === "home";
+  if (target === "end") return code === "end" || key === "end";
+  if (target.startsWith("f")) return key === target || code === target;
+  return key === target || code === target;
 }
 
-window.addEventListener("DOMContentLoaded", initApp);
+function exportWavBlob(buffers, sampleRate) {
+  let length = 0;
+  for (let i = 0; i < buffers.length; i++) {
+    length += buffers[i].length;
+  }
+  const merged = new Float32Array(length);
+  let offset = 0;
+  for (let i = 0; i < buffers.length; i++) {
+    merged.set(buffers[i], offset);
+    offset += buffers[i].length;
+  }
+  
+  const wavBuffer = new ArrayBuffer(44 + length * 2);
+  const view = new DataView(wavBuffer);
+  
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+  
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + length * 2, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // Mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, length * 2, true);
+  
+  let index = 44;
+  for (let i = 0; i < length; i++) {
+    let s = Math.max(-1, Math.min(1, merged[i]));
+    view.setInt16(index, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    index += 2;
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+async function startWebRecording() {
+  const micBtn = document.getElementById("mic-toggle-btn");
+  const pttBtn = document.getElementById("ptt-hold-btn");
+  if (micBtn) micBtn.classList.add("active");
+  if (pttBtn) pttBtn.classList.add("active");
+  document.getElementById("face-state-label").textContent = "LISTENING";
+  document.getElementById("face-state-label").style.color = "var(--cyan)";
+
+  fetch("/api/state", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ state: "listening" })
+  }).catch(() => {});
+
+  try {
+    if (!navigator.mediaDevices && !navigator.getUserMedia && !navigator.webkitGetUserMedia) {
+      alert("MediaDevices API is restricted on this URL.\n\nPlease open: http://localhost:8790/ in Chrome/Edge.");
+      stopWebRecording();
+      return;
+    }
+
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    }
+    if (audioCtx.state === "suspended") {
+      await audioCtx.resume();
+    }
+    pcmBuffers = [];
+
+    const getMedia = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+      ? (c) => navigator.mediaDevices.getUserMedia(c)
+      : (c) => new Promise((res, rej) => (navigator.getUserMedia || navigator.webkitGetUserMedia).call(navigator, c, res, rej));
+
+    micStream = await getMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+
+    const source = audioCtx.createMediaStreamSource(micStream);
+    pcmProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+    pcmProcessor.onaudioprocess = (e) => {
+      if (!isPttHeld && !isRecording) return;
+      const input = e.inputBuffer.getChannelData(0);
+      pcmBuffers.push(new Float32Array(input));
+    };
+
+    source.connect(pcmProcessor);
+    pcmProcessor.connect(audioCtx.destination);
+  } catch (err) {
+    console.error("Microphone capture error:", err);
+    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      alert("Microphone is currently BLOCKED by your browser.\n\nTo unblock:\n1. Look at the Tune/Lock icon on the left of your address bar (next to http://localhost:8790)\n2. Click it and toggle Microphone to ALLOW\n3. Refresh this page.");
+    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+      alert("No microphone device was detected.\n\nPlease check Windows Settings > System > Sound to verify your laptop microphone is enabled.");
+    } else {
+      alert("Microphone error: " + err.message + "\n\nPlease open http://localhost:8790/ and allow microphone access.");
+    }
+    stopWebRecording();
+  }
+}
+
+async function stopWebRecording() {
+  const micBtn = document.getElementById("mic-toggle-btn");
+  const pttBtn = document.getElementById("ptt-hold-btn");
+  if (micBtn) micBtn.classList.remove("active");
+  if (pttBtn) pttBtn.classList.remove("active");
+
+  if (pcmProcessor) {
+    try { pcmProcessor.disconnect(); } catch(e) {}
+    pcmProcessor = null;
+  }
+  if (micStream) {
+    try { micStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    micStream = null;
+  }
+
+  if (pcmBuffers.length === 0) {
+    document.getElementById("face-state-label").textContent = "IDLE";
+    document.getElementById("face-state-label").style.color = "var(--green)";
+    fetch("/api/state", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ state: "idle" })
+    }).catch(() => {});
+    return;
+  }
+
+  document.getElementById("face-state-label").textContent = "THINKING";
+  document.getElementById("face-state-label").style.color = "#bd93f9";
+
+  fetch("/api/state", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ state: "thinking" })
+  }).catch(() => {});
+
+  const currentRate = (audioCtx && audioCtx.sampleRate) || 16000;
+  const wavBlob = exportWavBlob(pcmBuffers, currentRate);
+  pcmBuffers = [];
+
+  try {
+    const res = await fetch("/api/transcribe", {
+      method: "POST",
+      body: wavBlob,
+      headers: { "Content-Type": "audio/wav" }
+    });
+    const data = await res.json();
+    if (data.text && data.text.trim()) {
+      userInput.value = data.text.trim();
+      sendMessage();
+    } else {
+      document.getElementById("face-state-label").textContent = "IDLE";
+      document.getElementById("face-state-label").style.color = "var(--green)";
+      fetch("/api/state", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ state: "idle" })
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.error("Transcription error:", err);
+    document.getElementById("face-state-label").textContent = "IDLE";
+    document.getElementById("face-state-label").style.color = "var(--green)";
+    fetch("/api/state", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ state: "idle" })
+    }).catch(() => {});
+  }
+}
+
+function toggleWebMic() {
+  if (isRecording) {
+    isRecording = false;
+    stopWebRecording();
+  } else {
+    isRecording = true;
+    startWebRecording();
+  }
+}
+
+function initPttButton() {
+  const pttBtn = document.getElementById("ptt-hold-btn");
+  if (!pttBtn) return;
+  const down = (e) => {
+    e.preventDefault();
+    if (!isPttHeld) {
+      isPttHeld = true;
+      startWebRecording();
+    }
+  };
+  const up = (e) => {
+    e.preventDefault();
+    if (isPttHeld) {
+      isPttHeld = false;
+      stopWebRecording();
+    }
+  };
+  pttBtn.addEventListener("mousedown", down);
+  pttBtn.addEventListener("mouseup", up);
+  pttBtn.addEventListener("mouseleave", up);
+  pttBtn.addEventListener("touchstart", down, {passive: false});
+  pttBtn.addEventListener("touchend", up, {passive: false});
+}
+
+window.addEventListener("keydown", (e) => {
+  const activeKey = document.getElementById("cfg-ptt-key") ? document.getElementById("cfg-ptt-key").value : "right_alt";
+  if (document.activeElement === userInput && activeKey !== "right_alt" && activeKey !== "space") {
+    return;
+  }
+  if (matchesBrowserKey(e, activeKey)) {
+    e.preventDefault();
+    if (!isPttHeld) {
+      isPttHeld = true;
+      startWebRecording();
+    }
+  }
+});
+
+window.addEventListener("keyup", (e) => {
+  const activeKey = document.getElementById("cfg-ptt-key") ? document.getElementById("cfg-ptt-key").value : "right_alt";
+  if (matchesBrowserKey(e, activeKey)) {
+    e.preventDefault();
+    if (isPttHeld) {
+      isPttHeld = false;
+      stopWebRecording();
+    }
+  }
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  initApp();
+  initPttButton();
+});
 </script>
 </body>
 </html>

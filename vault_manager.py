@@ -120,7 +120,9 @@ class VaultManager:
 
     def get_system_context(self) -> str:
         """Compile core vault notes into a cohesive system prompt context."""
-        parts = []
+        from datetime import datetime
+        now_str = datetime.now().strftime("%A, %B %d, %Y at %I:%M %p")
+        parts = [f"=== CURRENT SYSTEM TIME ===\nCurrent Local Time: {now_str}"]
         for name in ["SOUL.md", "IDENTITY.md", "MEMORY.md", "LESSONS.md"]:
             content = self.read_note(name)
             if content:

@@ -1665,23 +1665,58 @@ function renderNote(text) {
   }).join("\n");
 }
 
+const NOTE_CACHE = new Map();
+
 async function openPanel(card) {
-  if (items.some(i => i.type === "panel" && i.def === card.def)) return;
-  let text = "(couldn't load the note)";
-  try {
-    const r = await fetch("/note?f=" + encodeURIComponent(card.def.file));
-    if (r.ok) text = await r.text();
-  } catch (e) {}
+  const filePath = (card && card.def && card.def.file) || "";
+  const title = (card && card.def && card.def.title) || filePath.split("/").pop().replace(/\.[^/.]+$/, "") || "Note";
+  
+  const existing = items.find(i => i.type === "panel" && i.def && (i.def.file === filePath || (filePath && i.def.file && i.def.file.endsWith(filePath))));
+  if (existing) {
+    existing.x = innerWidth * 0.5;
+    existing.y = innerHeight * 0.44;
+    existing.anim = { k: "in", t: 0 };
+    BEHIND.appendChild(existing.el);
+    return;
+  }
+
+  const cached = NOTE_CACHE.get(filePath);
+  const initialHtml = cached ? renderNote(cached) : `<div class="loading-note" style="padding:24px;opacity:0.6;font-size:15px;letter-spacing:1px;">Loading ${escT(title)}...</div>`;
+
   const el = document.createElement("div");
   el.className = "panel";
-  el.innerHTML = `<div class="bar"><h3>${escT(card.def.file.split("/").pop().replace(".md",""))}</h3></div>` +
-                 `<div class="body"><div class="scroll">${renderNote(text)}</div></div>`;
+  el.innerHTML = `<div class="bar"><h3>${escT(title)}</h3></div>` +
+                 `<div class="body"><div class="scroll">${initialHtml}</div></div>`;
   BEHIND.appendChild(el);
   const p = { el, id: UID++, type: "panel", def: card.def, x: innerWidth * 0.5,
               y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0, grabbedBy: [],
               ox: 0, oy: 0, flying: false, stretch: null, scrollY: 0,
               body: el.querySelector(".scroll") };
+  p.anim = { k: "in", t: 0 };
+  p.el.style.opacity = "0.05";
+  bindItemPointerEvents(p);
   items.push(p);
+
+  if (!cached && filePath) {
+    try {
+      const r = await fetch("/note?f=" + encodeURIComponent(filePath));
+      if (r.ok) {
+        const text = await r.text();
+        NOTE_CACHE.set(filePath, text);
+        if (p.el && p.el.isConnected) {
+          p.body.innerHTML = renderNote(text);
+        }
+      } else {
+        if (p.el && p.el.isConnected) {
+          p.body.innerHTML = `<div style="padding:24px;color:#ff8888;font-size:14px;">(Could not load "${escT(title)}")</div>`;
+        }
+      }
+    } catch (e) {
+      if (p.el && p.el.isConnected) {
+        p.body.innerHTML = `<div style="padding:24px;color:#ff8888;font-size:14px;">(Network error loading "${escT(title)}")</div>`;
+      }
+    }
+  }
 }
 
 function toast(msg, ms = 2500) {

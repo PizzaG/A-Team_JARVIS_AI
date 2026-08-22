@@ -478,21 +478,40 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             elif url_path.startswith("/note"):
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
                 rel = (q.get("f") or [""])[0]
-                idx, _, rel = rel.partition("/")
-                root = orb_root(idx)
-                if root is None:
-                    self._send_text("Not found", 404)
-                    return
-                target = (root / rel).resolve()
-                TEXT_EXTS = {".md", ".txt", ".json", ".py", ".js", ".html", ".css", ".ts", ".sh", ".bat", ".yaml", ".yml", ".toml", ".csv", ".log"}
-                if (root not in target.parents) or target.suffix.lower() not in TEXT_EXTS or not target.is_file():
+                target = None
+                TEXT_EXTS = {".md", ".txt", ".json", ".py", ".js", ".html", ".css", ".ts", ".sh", ".bat", ".yaml", ".yml", ".toml", ".csv", ".log", ".ini", ".conf", ".env"}
+
+                if "/" in rel and rel.split("/")[0].isdigit():
+                    idx, _, subpath = rel.partition("/")
+                    root = orb_root(idx)
+                    if root:
+                        candidate = (root / subpath).resolve()
+                        if candidate.is_file():
+                            target = candidate
+                if target is None:
+                    # Search across all orbs
+                    cfg = load_barehands_config()
+                    for i in range(len(cfg.get("orbs", []))):
+                        root = orb_root(i)
+                        if root:
+                            candidate = (root / rel).resolve()
+                            if candidate.is_file():
+                                target = candidate
+                                break
+                            if "/" in rel:
+                                candidate2 = (root / rel.split("/", 1)[-1]).resolve()
+                                if candidate2.is_file():
+                                    target = candidate2
+                                    break
+
+                if target is None or not target.is_file():
                     self._send_text("Not found", 404)
                     return
                 try:
                     body = target.read_bytes()
                     self._send_bytes(body, "text/plain; charset=utf-8")
-                except Exception:
-                    self._send_text("Error reading file", 500)
+                except Exception as e:
+                    self._send_text(f"Error reading file: {e}", 500)
             elif url_path == "/api/models":
                 cfg = load_config()
                 models = get_ollama_models(cfg.get("ollama_url", "http://127.0.0.1:11434"))

@@ -36,9 +36,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   body.ui-cyan .card h3, body.ui-cyan .panel .bar h3, body.ui-cyan .panel .close
     { color:#00e5ff; border-color:rgba(0,229,255,0.6); }
   body.ui-cyan .scroll .h { color:#00e5ff; }
-  #toast { position:absolute; top:14px; right:14px; z-index:998; display:none;
-           background:rgba(0,0,0,0.7); color:#8ff0e4; padding:8px 14px;
-           border-radius:8px; font:13px "SF Mono",Menlo,monospace; }
+  #toast { position:absolute; top:52px; right:16px; z-index:998; display:none;
+           background:rgba(0,0,0,0.85); border:1px solid rgba(143,240,228,0.3);
+           color:#8ff0e4; padding:6px 14px; border-radius:6px; font:12px "SF Mono",Menlo,monospace; }
   /* the squeeze-hold charge glow, visible on the TRACKER too (the render
      page has its own on-air rule): pinch + hold still = charge = open/close */
   .card, .panel { --ch:0; }
@@ -1684,12 +1684,23 @@ function pauseCam() {
 async function resumeCam() {
   cameraPaused = false;
   lastVideoTs = -1;
+  // If items were placed at (0, 0) during hidden boot or zero dimensions, reposition cleanly!
+  if (items.length === 0 || (items.length === 1 && (items[0].x < 100 || items[0].y < 100))) {
+    spawnStage(0.30, 0.45);
+  }
   try {
     await pickInitialCam();
   } catch (e) {
     console.warn("Error resuming camera:", e);
   }
 }
+
+window.addEventListener("resize", () => {
+  if (items.length === 1 && items[0].type === "widget" && items[0].def && items[0].def.w === "ring") {
+    items[0].x = innerWidth * 0.30;
+    items[0].y = innerHeight * 0.45;
+  }
+});
 
 function exitToDesktop() {
   if (window.parent && window.parent !== window) {

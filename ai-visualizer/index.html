@@ -27,7 +27,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     background: var(--bg);
     color: var(--ink);
     font-family: var(--mono);
-    min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -36,6 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   /* Top Navigation Bar */
   header {
     height: 56px;
+    flex-shrink: 0;
     background: rgba(4, 16, 11, 0.95);
     border-bottom: 1px solid var(--card-border);
     display: flex;
@@ -122,7 +124,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     flex: 1;
     display: flex;
     height: calc(100vh - 56px);
+    max-height: calc(100vh - 56px);
+    min-height: 0;
     position: relative;
+    overflow: hidden;
   }
 
   /* View: Dashboard (Visualizer + Chat) */
@@ -131,6 +136,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     display: flex;
     width: 100%;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   /* 3D Visualizer Face Viewport */
@@ -141,6 +148,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     position: relative;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
   .face-frame {
     width: 100%;
@@ -169,8 +179,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     flex-direction: column;
     background: #020a06;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
   .chat-header {
+    flex-shrink: 0;
     padding: 10px 16px;
     border-bottom: 1px solid var(--card-border);
     display: flex;
@@ -193,8 +206,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .chat-clear-btn:hover { color: var(--amber); border-color: var(--amber); }
 
   .chat-messages {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
+    min-height: 0;
     padding: 16px;
     display: flex;
     flex-direction: column;
@@ -258,7 +272,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
   /* Chat Input Area */
   .chat-input-box {
-    padding: 14px;
+    flex-shrink: 0;
+    padding: 12px 16px;
     border-top: 1px solid var(--card-border);
     background: #030d08;
     display: flex;
@@ -320,19 +335,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     background: #020805;
   }
   .vault-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 20px;
-    height: calc(100vh - 120px);
+    display: flex;
+    gap: 24px;
+    height: 100%;
   }
   .vault-sidebar {
-    background: var(--card);
+    width: 260px;
     border: 1px solid var(--card-border);
-    border-radius: 6px;
-    padding: 14px;
+    border-radius: 8px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    background: #04100a;
   }
   .vault-file-btn {
     background: transparent;
@@ -341,52 +356,55 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     font-family: var(--mono);
     font-size: 12px;
     padding: 8px 12px;
+    text-align: left;
     border-radius: 4px;
     cursor: pointer;
-    text-align: left;
   }
-  .vault-file-btn:hover { color: var(--ink); background: rgba(255,255,255,0.03); }
+  .vault-file-btn:hover { color: var(--ink); background: rgba(61, 220, 132, 0.05); }
   .vault-file-btn.active {
+    color: var(--green);
     background: rgba(61, 220, 132, 0.12);
     border-color: var(--green);
-    color: var(--green);
   }
   .vault-editor {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  textarea#vault-text {
+  #vault-text {
     flex: 1;
     background: #04100a;
     border: 1px solid var(--card-border);
     color: var(--ink);
     font-family: var(--mono);
     font-size: 13px;
-    line-height: 1.6;
     padding: 16px;
-    border-radius: 6px;
+    border-radius: 8px;
     outline: none;
     resize: none;
+    line-height: 1.6;
   }
 
   /* View: Settings */
   .settings-card {
-    max-width: 680px;
-    background: var(--card);
+    max-width: 600px;
+    background: #04100a;
     border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 24px;
-    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
   }
   .settings-title {
-    font-size: 16px;
+    font-size: 13px;
+    letter-spacing: 0.15em;
     color: var(--green);
-    letter-spacing: 0.2em;
-    margin-bottom: 18px;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 8px;
   }
   .form-group {
-    margin-bottom: 16px;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -433,7 +451,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     bottom: 24px;
     right: 24px;
     z-index: 999;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 10px;
     background: rgba(6, 20, 14, 0.88);
@@ -461,6 +479,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     font-size: 16px;
   }
   .floating-mode-btn.in-barehands {
+    display: flex;
     border-color: var(--cyan);
     color: var(--cyan);
     background: rgba(6, 18, 24, 0.9);
@@ -615,8 +634,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 "use strict";
 
 let activeNote = "SOUL.md";
-let recognition = null;
-let isRecording = false;
 
 // 1. Initialize Tabs, Modes & Config
 let currentMode = "desktop"; // "desktop" | "barehands"

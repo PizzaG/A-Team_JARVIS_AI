@@ -103,17 +103,27 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
   .card.imgcard, .card.videocard {
-      padding:0; width:auto; max-width:64vw; overflow:visible;
-      min-width:240px; min-height:160px; display:flex; flex-direction:column;
-      background:transparent; border:none; box-shadow:none; backdrop-filter:none;
+      position:absolute; width:auto; max-width:58vw; max-height:64vh;
+      padding:8px 8px 12px 8px; border-radius:20px;
+      display:flex; flex-direction:column; align-items:stretch;
+      background:linear-gradient(168deg, rgba(70,140,130,0.28), rgba(18,48,44,0.16));
+      border:1.5px solid rgba(140,240,225,0.55);
+      box-shadow:0 10px 44px rgba(0,0,0,0.40), 0 0 30px rgba(111,229,214,0.18),
+                 inset 0 1px 0 rgba(210,255,248,0.55),
+                 inset 0 -14px 30px rgba(111,229,214,0.05);
+      backdrop-filter:blur(20px);
+      color:#ecfffa; user-select:none; will-change:transform;
+      transform-origin:center center;
       transition:box-shadow 0.3s ease, border-color 0.3s ease; }
   .card.imgcard.grabbed, .card.videocard.grabbed {
-      background:transparent; border:none; box-shadow:none; }
+      border-color:#8ff0e4;
+      box-shadow:0 20px 60px rgba(0,0,0,0.55), 0 0 50px rgba(111,229,214,0.35),
+                 inset 0 1px 0 rgba(210,255,248,0.8); }
 
   .spatial-ambient-glow {
-    position:absolute; inset:-32px; border-radius:52px;
-    background:radial-gradient(ellipse at center, rgba(0, 229, 255, 0.35) 0%, rgba(14, 165, 233, 0.16) 50%, transparent 75%);
-    filter:blur(38px); z-index:-2; pointer-events:none;
+    position:absolute; inset:-24px; border-radius:32px;
+    background:radial-gradient(ellipse at center, rgba(0, 229, 255, 0.35) 0%, rgba(14, 165, 233, 0.14) 55%, transparent 75%);
+    filter:blur(36px); z-index:-2; pointer-events:none;
     animation:ambientPulse 4s ease-in-out infinite alternate;
   }
   @keyframes ambientPulse {
@@ -121,56 +131,56 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     100% { opacity:1; transform:scale(1.03); }
   }
   .spatial-specular-sheen {
-    position:absolute; inset:0; border-radius:24px;
+    position:absolute; inset:0; border-radius:20px;
     background:linear-gradient(125deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 28%, transparent 55%);
     pointer-events:none; z-index:14;
   }
 
+  .media-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:4px 8px 8px 8px; cursor:grab; }
+  .media-bar:active { cursor:grabbing; }
+  .media-bar h3 {
+    margin:0; font:700 12px/1 "SF Mono",Menlo,monospace; letter-spacing:0.08em;
+    color:#8ff0e4; text-transform:uppercase;
+    text-shadow:0 1px 3px rgba(2,14,12,0.95), 0 0 14px rgba(111,229,214,0.55); }
+
   .media-body {
     position:relative; width:100%; display:flex; align-items:center;
-    justify-content:center; overflow:hidden; border-radius:24px; }
+    justify-content:center; overflow:hidden; border-radius:14px; }
   .media-body img {
-    display:block; max-width:58vw; max-height:60vh; min-width:220px;
-    object-fit:contain; border-radius:24px;
-    border:1.5px solid rgba(140,240,225,0.65);
-    box-shadow:0 16px 70px rgba(0,0,0,0.5), 0 0 50px rgba(111,229,214,0.30),
-               inset 0 1px 0 rgba(210,255,248,0.7);
-    transition:filter 0.3s ease, border-color 0.3s ease; }
-  .media-body img.holo-active, .video-container video.holo-active {
-    filter:invert(0.90) hue-rotate(165deg) contrast(1.22) brightness(1.10) drop-shadow(0 0 22px rgba(111,229,214,0.65)) !important;
-    mix-blend-mode:screen !important; }
+    display:block; max-width:100%; max-height:56vh;
+    object-fit:contain; border-radius:14px;
+    opacity:0.86;
+    transition:opacity 0.3s ease; }
 
   /* Spatial Video Screen */
   .video-container {
-    position:relative; width:100%; background:transparent; overflow:hidden;
-    border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;
-    border:1.5px solid rgba(140,240,225,0.65);
-    box-shadow:0 16px 70px rgba(0,0,0,0.5), 0 0 50px rgba(111,229,214,0.30),
-               inset 0 1px 0 rgba(210,255,248,0.7);
-    backdrop-filter:blur(24px);
-    transition:border-color 0.3s ease, box-shadow 0.3s ease; }
-  .card.videocard.grabbed .video-container {
-    border-color:#8ff0e4;
-    box-shadow:0 24px 80px rgba(0,0,0,0.60), 0 0 70px rgba(111,229,214,0.45); }
+    position:relative; width:100%; display:flex; align-items:center;
+    justify-content:center; overflow:hidden; border-radius:14px; cursor:pointer; }
   .video-container video {
-    display:block; max-width:58vw; max-height:60vh;
-    border-radius:24px;
-    transition:filter 0.3s ease, transform 0.3s ease; }
+    display:block; max-width:100%; max-height:56vh;
+    border-radius:14px;
+    opacity:0.86;
+    transition:opacity 0.3s ease; }
+  .card.imgcard.grabbed .media-body img,
+  .card.videocard.grabbed .video-container video {
+    opacity:0.96; }
   
   .jarvis-scanlines {
-    position:absolute; inset:0; border-radius:20px;
+    position:absolute; inset:0; border-radius:14px;
     background:linear-gradient(rgba(143,240,228,0.04) 50%, transparent 50%);
     background-size:100% 4px; pointer-events:none; z-index:11; }
 
   .video-play-pulse {
     position:absolute; top:50%; left:50%;
     transform:translate(-50%, -50%) scale(0.7);
-    width:72px; height:72px; border-radius:50%;
+    width:64px; height:64px; border-radius:50%;
     background:linear-gradient(168deg, rgba(70,140,130,0.5), rgba(18,48,44,0.4));
     border:1.5px solid #8ff0e4;
     backdrop-filter:blur(16px);
     box-shadow:0 0 30px rgba(143,240,228,0.7), inset 0 0 14px rgba(143,240,228,0.4);
-    display:flex; align-items:center; justify-content:center; color:#8ff0e4; font-size:30px;
+    display:flex; align-items:center; justify-content:center; color:#8ff0e4; font-size:26px;
     pointer-events:none; opacity:0;
     transition:all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index:12; }
   .video-play-pulse.active {
@@ -178,14 +188,41 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
   /* Floating Frosted Scrubber Island */
   .video-scrubber-bar {
-    position:absolute; bottom:14px; left:20px; right:20px;
-    height:44px; padding:0 16px;
-    background:linear-gradient(168deg, rgba(70,140,130,0.35), rgba(18,48,44,0.25));
+    position:absolute; bottom:10px; left:14px; right:14px;
+    height:38px; padding:0 12px;
+    background:linear-gradient(168deg, rgba(70,140,130,0.40), rgba(18,48,44,0.30));
     backdrop-filter:blur(24px) saturate(180%);
-    border:1.5px solid rgba(140,240,225,0.55); border-radius:22px;
+    border:1.5px solid rgba(140,240,225,0.55); border-radius:19px;
     box-shadow:0 10px 30px rgba(0,0,0,0.45), 0 0 20px rgba(111,229,214,0.22);
-    display:flex; align-items:center; gap:14px;
+    display:flex; align-items:center; gap:10px;
     z-index:13; user-select:none; }
+  .video-scrubber-bar .video-play-btn,
+  .video-vol-btn {
+    color:#ecfffa; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%; background:rgba(143,240,228,0.12);
+    border:1px solid rgba(143,240,228,0.35); transition:all 0.2s ease; user-select:none; }
+  .video-scrubber-bar .video-play-btn:hover,
+  .video-vol-btn:hover {
+    background:rgba(143,240,228,0.32); border-color:#8ff0e4; color:#fff;
+    box-shadow:0 0 12px rgba(143,240,228,0.6); transform:scale(1.08); }
+  .video-scrub-track {
+    position:relative; flex:1; height:6px;
+    background:rgba(143,240,228,0.22); border-radius:3px;
+    cursor:pointer; transition:all 0.15s ease; }
+  .video-scrub-track:hover { height:8px; background:rgba(143,240,228,0.35); }
+  .video-scrub-progress {
+    position:relative; height:100%;
+    background:linear-gradient(90deg, #4edbc6, #a0fff2); border-radius:3px;
+    box-shadow:0 0 10px #8ff0e4, 0 0 20px rgba(0,229,255,0.6);
+    width:0%; pointer-events:none; }
+  .video-scrub-progress::after {
+    content:""; position:absolute; right:-5px; top:50%; transform:translateY(-50%);
+    width:10px; height:10px; border-radius:50%; background:#ffffff;
+    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.8); }
+  .video-time-tag {
+    font:600 11px "SF Mono",Menlo,monospace; color:#ecfffa;
+    letter-spacing:0.06em; text-shadow:0 1px 3px rgba(2,14,12,0.95), 0 0 10px rgba(111,229,214,0.5);
+    white-space:nowrap; opacity:0.95; }
   .video-scrubber-bar .video-play-btn,
   .video-vol-btn {
     color:#ecfffa; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
@@ -690,9 +727,12 @@ function makeVideo(src, title) {
   el.className = "card videocard";
   
   el.innerHTML = `
+    <div class="spatial-ambient-glow"></div>
+    <div class="spatial-specular-sheen"></div>
+    <div class="media-bar">
+      <h3>🎬 ${escT(title || 'Video')}</h3>
+    </div>
     <div class="video-container">
-      <div class="spatial-ambient-glow"></div>
-      <div class="spatial-specular-sheen"></div>
       <div class="jarvis-scanlines"></div>
       <video src="${escT(src)}" loop autoplay playsinline muted></video>
       <div class="video-play-pulse">▶</div>
@@ -841,9 +881,12 @@ function makeImage(src, title) {
   el.className = "card imgcard";
   
   el.innerHTML = `
+    <div class="spatial-ambient-glow"></div>
+    <div class="spatial-specular-sheen"></div>
+    <div class="media-bar">
+      <h3>🖼️ ${escT(title || 'Photo')}</h3>
+    </div>
     <div class="media-body">
-      <div class="spatial-ambient-glow"></div>
-      <div class="spatial-specular-sheen"></div>
       <div class="jarvis-scanlines"></div>
       <div class="img-spinner" style="padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;">
         <div style="font-size:32px;margin-bottom:10px;">🖼️</div>

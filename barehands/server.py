@@ -111,61 +111,68 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
     def _json(self, obj, code=200):
-        body = json.dumps(obj).encode()
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            body = json.dumps(obj).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            pass
 
     def do_POST(self):
         global _STATE
-        n = int(self.headers.get("Content-Length", 0) or 0)
-        body = self.rfile.read(n) if 0 < n < 262144 else b"{}"
-        if self.path == "/state":
-            # the tracker's heartbeat doubles as the command channel
-            _STATE = body
-            out = json.dumps(_CMDS[:8]).encode()
-            del _CMDS[:8]
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(out)))
+        try:
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            body = self.rfile.read(n) if 0 < n < 262144 else b"{}"
+            if self.path == "/state":
+                _STATE = body
+                out = json.dumps(_CMDS[:8]).encode()
+                del _CMDS[:8]
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(out)))
+                self.end_headers()
+                self.wfile.write(out)
+                return
+            if self.path == "/cmd":
+                try:
+                    cmd = json.loads(body)
+                    assert cmd.get("a") in _ALLOWED
+                    if cmd["a"] in ("add_img", "hand", "give", "present") and cmd.get("src"):
+                        rel = str(cmd.get("src", "")).lstrip("/")
+                        if rel.startswith("media/"):
+                            rel = rel[6:]
+                        media = (HERE / "media").resolve()
+                        target = (media / rel).resolve()
+                        if media not in target.parents or not target.is_file():
+                            name = Path(rel).name.lower()
+                            hits = [p for p in media.rglob("*")
+                                    if p.is_file()
+                                    and p.name.lower() == name] if name else []
+                            if len(hits) != 1:
+                                raise ValueError("not in the media airlock")
+                            target = hits[0]
+                        cmd["src"] = "/media/" + target.relative_to(media).as_posix()
+                    _CMDS.append(cmd)
+                    self.send_response(204)
+                    self.end_headers()
+                except Exception:
+                    self.send_response(400)
+                    self.end_headers()
+                return
+            self.send_response(404)
             self.end_headers()
-            self.wfile.write(out)
-            return
-        if self.path == "/cmd":
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            pass
+        except Exception:
             try:
-                cmd = json.loads(body)
-                assert cmd.get("a") in _ALLOWED
-                if cmd["a"] in ("add_img", "hand", "give", "present") and cmd.get("src"):
-                    # THE AIRLOCK: only files really inside ./media/ ever
-                    # stage — subfolders allowed, escapes 400. If the
-                    # exact path misses, a UNIQUE basename match anywhere
-                    # inside the airlock self-heals a wrong-folder guess;
-                    # zero or many matches still 400.
-                    rel = str(cmd.get("src", "")).lstrip("/")
-                    if rel.startswith("media/"):
-                        rel = rel[6:]
-                    media = (HERE / "media").resolve()
-                    target = (media / rel).resolve()
-                    if media not in target.parents or not target.is_file():
-                        name = Path(rel).name.lower()
-                        hits = [p for p in media.rglob("*")
-                                if p.is_file()
-                                and p.name.lower() == name] if name else []
-                        if len(hits) != 1:
-                            raise ValueError("not in the media airlock")
-                        target = hits[0]
-                    cmd["src"] = "/media/" + target.relative_to(media).as_posix()
-                _CMDS.append(cmd)
-                self.send_response(204)
+                self.send_response(500)
+                self.end_headers()
             except Exception:
-                self.send_response(400)
-            self.end_headers()
-            return
-        self.send_response(404)
-        self.end_headers()
+                pass
 
     def do_GET(self):
         if self.path == "/config":
@@ -292,14 +299,39 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            pass
 
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+def create_server(host, port, max_retries=10):
+    for attempt in range(max_retries):
+        try:
+            return ReusableThreadingHTTPServer((host, port), Handler)
+        except OSError as e:
+            if attempt < max_retries - 1:
+                time.sleep(0.5)
+            else:
+                raise e
 
 if __name__ == "__main__":
-    (HERE / "state").mkdir(exist_ok=True)   # the ring's runtime files land here
+    import sys
+    import webbrowser
+    import threading
+    (HERE / "state").mkdir(exist_ok=True)
     port = int(CONFIG.get("port", 8794))
-    print(f"barehands up: http://127.0.0.1:{port}/stage.html", flush=True)
+    url = f"http://127.0.0.1:{port}/stage.html"
+    print(f"barehands up: {url}", flush=True)
     print("  tracker (camera): open that URL in Chrome", flush=True)
     print("  render (overlay): same URL + ?role=render", flush=True)
-    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    if "--no-open" not in sys.argv:
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    srv = create_server("0.0.0.0", port)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass

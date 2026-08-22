@@ -43,18 +43,19 @@ if exist "ai-visualizer" (
   ping 127.0.0.1 -n 2 >nul
 )
 
-rem Optional Barehands
+rem Barehands Air Board (Port 8794)
 if exist "barehands" (
   if not "%1"=="voice" (
-    echo [*] Starting Barehands gesture server...
-    start "JARVIS Hands" %PYCMD% barehands\server.py
+    echo [2/3] Launching Barehands Air Board on http://127.0.0.1:8794/stage.html ...
+    start "JARVIS Barehands" %PYCMD% barehands\server.py
+    ping 127.0.0.1 -n 2 >nul
   )
 )
 
 rem Launch Voice Engine (Backtalk)
 if exist "backtalk" (
-  if not "%1"=="web" (
-    echo [2/2] Starting Voice Engine in this window...
+  if not "%1"=="web" if not "%1"=="hands" (
+    echo [3/3] Starting Voice Engine in this window...
     echo       Hold your talk key - HOME by default - and speak.
     echo       Press Ctrl-C or say goodbye jarvis to exit.
     echo.

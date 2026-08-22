@@ -143,6 +143,27 @@ TOOL_DEFINITIONS = [
                 "required": ["note_name", "entry"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "present_on_board",
+            "description": "Present an enlarged spotlight card, note, or diagram onto the Barehands glass air board.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Card title to display on the glass."
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Text or markdown content to display on the glass."
+                    }
+                },
+                "required": ["title", "body"]
+            }
+        }
     }
 ]
 
@@ -243,6 +264,18 @@ class ToolEngine:
         if ok:
             return f"Recorded memory in {note_name}: '{entry}'"
         return f"Failed to record memory in {note_name}"
+
+    def _tool_present_on_board(self, title: str, body: str) -> str:
+        try:
+            import urllib.request
+            req_data = json.dumps({"a": "present", "title": title, "body": body}).encode("utf-8")
+            req = urllib.request.Request("http://127.0.0.1:8794/cmd", data=req_data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
+                if resp.status in (200, 204):
+                    return f"Successfully presented '{title}' onto the Barehands glass air board."
+                return f"Board returned status {resp.status}"
+        except Exception as e:
+            return f"Could not reach Barehands board on http://127.0.0.1:8794 (is Barehands server running?): {e}"
 
 if __name__ == "__main__":
     engine = ToolEngine()

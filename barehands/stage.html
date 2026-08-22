@@ -281,13 +281,25 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     background: rgba(10, 20, 24, 0.85); backdrop-filter: blur(10px);
     border: 1px solid rgba(143, 240, 228, 0.45); border-radius: 20px;
     padding: 6px 14px; color: #8ff0e4; font: 12px "SF Mono", Menlo, monospace;
-    cursor: pointer; user-select: none; transition: all 0.2s ease;
+    cursor: pointer; user-select: none;
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   }
   #desktop-exit-btn:hover {
     border-color: rgba(143, 240, 228, 0.9); background: rgba(16, 32, 38, 0.95);
     color: #fff; transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(0, 240, 255, 0.3);
+  }
+  #desktop-exit-btn, #voice-hud, #hint {
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
+    opacity: 1; visibility: visible;
+  }
+  body.mouse-idle #desktop-exit-btn,
+  body.mouse-idle #voice-hud,
+  body.mouse-idle #hint {
+    opacity: 0 !important; pointer-events: none !important; visibility: hidden !important;
+  }
+  body.mouse-idle {
+    cursor: none;
   }
   .pdf-page-canvas {
     display:block; width:100%; max-width:800px; margin:0 auto 18px auto;
@@ -2150,6 +2162,30 @@ document.getElementById("voice-hud")?.addEventListener("click", toggleVoiceModal
 document.getElementById("vhud-mode-select")?.addEventListener("change", onVoiceModalChange);
 document.getElementById("vhud-key-select")?.addEventListener("change", onVoiceModalChange);
 document.getElementById("vhud-toggle-btn")?.addEventListener("click", toggleMicModeQuick);
+
+// Auto-hide HUD buttons ("Desktop studio", "Voice HUD", and bottom tips) on 5s mouse inactivity
+let mouseIdleTimer = null;
+function resetMouseIdleTimer() {
+  const modal = document.getElementById("voice-modal");
+  const isModalOpen = modal && modal.style.display === "block";
+
+  document.body.classList.remove("mouse-idle");
+  clearTimeout(mouseIdleTimer);
+
+  if (!isModalOpen) {
+    mouseIdleTimer = setTimeout(() => {
+      const modalNow = document.getElementById("voice-modal");
+      if (!modalNow || modalNow.style.display !== "block") {
+        document.body.classList.add("mouse-idle");
+      }
+    }, 5000);
+  }
+}
+
+["mousemove", "mousedown", "wheel", "pointerdown", "touchstart"].forEach(evt => {
+  window.addEventListener(evt, resetMouseIdleTimer, { passive: true });
+});
+resetMouseIdleTimer();
 
 addEventListener("keydown", e => {
   // live respawn: re-read the notes AND props trees from disk before

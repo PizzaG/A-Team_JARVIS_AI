@@ -41,6 +41,7 @@ if exist "ai-visualizer" (
   echo [1/2] Launching Unified Web Dashboard on http://127.0.0.1:8790/ ...
   start "JARVIS Web Dashboard & 3D Face" %PYCMD% ai-visualizer\server.py
   ping 127.0.0.1 -n 2 >nul
+  start http://127.0.0.1:8790/
 )
 
 rem Barehands Air Board (Port 8794)
@@ -54,17 +55,21 @@ if exist "barehands" (
 
 rem Launch Voice Engine (Backtalk)
 if exist "backtalk" (
-  if not "%1"=="web" if not "%1"=="hands" (
+  if not "%1"=="web" (
     echo [3/3] Starting Voice Engine in this window...
-    echo       Hold your talk key - HOME by default - and speak.
+    echo       Hold your talk key (RIGHT ALT by default) or use hands-free.
     echo       Press Ctrl-C or say goodbye jarvis to exit.
     echo.
     cd /d "%~dp0backtalk"
-    where uv >nul 2>nul
-    if errorlevel 1 (
-      %PYCMD% -m backtalk.main
+    if exist ".venv\Scripts\python.exe" (
+      ".venv\Scripts\python.exe" -m backtalk.main
     ) else (
-      uv run python -m backtalk.main
+      where uv >nul 2>nul
+      if errorlevel 1 (
+        %PYCMD% -m backtalk.main
+      ) else (
+        uv run python -m backtalk.main
+      )
     )
   ) else (
     echo Web dashboard is running at http://127.0.0.1:8790/

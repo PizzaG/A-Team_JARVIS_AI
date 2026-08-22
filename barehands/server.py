@@ -163,6 +163,27 @@ class Handler(SimpleHTTPRequestHandler):
                     self.send_response(400)
                     self.end_headers()
                 return
+            if self.path == "/api/voice-config":
+                try:
+                    data = json.loads(body) if body else {}
+                    bt_cfg_file = HERE.parent / "backtalk" / "backtalk.json"
+                    bt_data = {}
+                    if bt_cfg_file.exists():
+                        try:
+                            bt_data = json.loads(bt_cfg_file.read_text(encoding="utf-8"))
+                        except Exception:
+                            bt_data = {}
+                    if "mic_mode" in data:
+                        bt_data["mic_mode"] = data["mic_mode"]
+                    if "ptt_key" in data:
+                        bt_data["ptt_key"] = data["ptt_key"]
+                    if "barehands_state_dir" not in bt_data:
+                        bt_data["barehands_state_dir"] = str((HERE / "state").resolve())
+                    bt_cfg_file.write_text(json.dumps(bt_data, indent=2), encoding="utf-8")
+                    self._json({"status": "success", "config": bt_data})
+                except Exception as e:
+                    self._json({"status": "error", "message": str(e)}, 500)
+                return
             self.send_response(404)
             self.end_headers()
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
@@ -175,6 +196,18 @@ class Handler(SimpleHTTPRequestHandler):
                 pass
 
     def do_GET(self):
+        if self.path == "/api/voice-config":
+            bt_cfg_file = HERE.parent / "backtalk" / "backtalk.json"
+            cfg = {"mic_mode": "ptt", "ptt_key": "right_alt"}
+            if bt_cfg_file.exists():
+                try:
+                    data = json.loads(bt_cfg_file.read_text(encoding="utf-8"))
+                    cfg["mic_mode"] = data.get("mic_mode", "ptt")
+                    cfg["ptt_key"] = data.get("ptt_key", "right_alt")
+                except Exception:
+                    pass
+            self._json(cfg)
+            return
         if self.path == "/config":
             # the page builds its ring name + orb bloom from this
             self._json({"name": CONFIG.get("name", "Assistant"),

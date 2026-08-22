@@ -38,34 +38,50 @@ import threading
 from pynput import keyboard
 
 
-def resolve_key(name: str):
-    """'home' / 'f13' / 'right_alt' / any single character -> pynput key."""
+def get_key_set(name: str) -> set:
+    """Resolve human key name to a set of matching pynput Key / KeyCode objects."""
     name = (name or "home").strip().lower()
     if len(name) == 1:
-        return keyboard.KeyCode.from_char(name)
-    # Friendly names -> pynput's names. pynput calls the right option key
-    # alt_r, not right_alt; the docs speak human, this map translates.
-    # (Field-caught: right_alt silently fell back to home, which Mac
-    # laptops cannot press, so the voice looked healthy and never fired.)
+        return {keyboard.KeyCode.from_char(name)}
+    
     aliases = {
-        "right_alt": "alt_r", "left_alt": "alt_l",
-        "right_option": "alt_r", "left_option": "alt_l",
-        "right_ctrl": "ctrl_r", "left_ctrl": "ctrl_l",
-        "right_cmd": "cmd_r", "left_cmd": "cmd_l",
-        "right_shift": "shift_r", "left_shift": "shift_l",
+        "right_alt": {keyboard.Key.alt_r, keyboard.Key.alt_gr, getattr(keyboard.Key, "alt", None)},
+        "alt_r": {keyboard.Key.alt_r, keyboard.Key.alt_gr, getattr(keyboard.Key, "alt", None)},
+        "left_alt": {keyboard.Key.alt_l, getattr(keyboard.Key, "alt", None)},
+        "alt": {keyboard.Key.alt_l, keyboard.Key.alt_r, keyboard.Key.alt_gr, getattr(keyboard.Key, "alt", None)},
+        "right_ctrl": {keyboard.Key.ctrl_r, getattr(keyboard.Key, "ctrl", None)},
+        "ctrl_r": {keyboard.Key.ctrl_r, getattr(keyboard.Key, "ctrl", None)},
+        "left_ctrl": {keyboard.Key.ctrl_l, getattr(keyboard.Key, "ctrl", None)},
+        "ctrl": {keyboard.Key.ctrl_l, keyboard.Key.ctrl_r, getattr(keyboard.Key, "ctrl", None)},
+        "right_shift": {keyboard.Key.shift_r, getattr(keyboard.Key, "shift", None)},
+        "shift_r": {keyboard.Key.shift_r, getattr(keyboard.Key, "shift", None)},
+        "left_shift": {keyboard.Key.shift_l, getattr(keyboard.Key, "shift", None)},
+        "shift": {keyboard.Key.shift_l, keyboard.Key.shift_r, getattr(keyboard.Key, "shift", None)},
+        "space": {keyboard.Key.space},
+        "spacebar": {keyboard.Key.space},
+        "home": {keyboard.Key.home},
+        "end": {keyboard.Key.end},
     }
-    name = aliases.get(name, name)
+    if name in aliases:
+        return {k for k in aliases[name] if k is not None}
+    
     try:
-        return getattr(keyboard.Key, name)
+        return {getattr(keyboard.Key, name)}
     except AttributeError:
-        print(f"[ptt] unknown key {name!r} — falling back to 'home'",
-              flush=True)
-        return keyboard.Key.home
+        print(f"[ptt] unknown key {name!r} — falling back to 'home'", flush=True)
+        return {keyboard.Key.home}
+
+
+def resolve_key(name: str):
+    """Backwards-compatible single-key resolver."""
+    keys = get_key_set(name)
+    return next(iter(keys))
 
 
 class PTTListener:
     def __init__(self, key="home"):
-        self._key = resolve_key(key) if isinstance(key, str) else key
+        self._key_name = key if isinstance(key, str) else "home"
+        self._keys = get_key_set(self._key_name)
         self._held = False
         self._press_evt = threading.Event()
         self._listener = keyboard.Listener(on_press=self._on_press,
@@ -73,19 +89,34 @@ class PTTListener:
         self._listener.daemon = True
         self._listener.start()
 
+    def _matches(self, k) -> bool:
+        if k in self._keys:
+            return True
+        if hasattr(k, "char") and k.char and any(hasattr(t, "char") and t.char == k.char for t in self._keys):
+            return True
+        if hasattr(k, "vk") and k.vk and any(hasattr(t, "vk") and t.vk == k.vk for t in self._keys):
+            return True
+        return False
+
     def _on_press(self, k):
-        if k == self._key and not self._held:   # filter key-repeat
+        if self._matches(k) and not self._held:   # filter key-repeat
             self._held = True
             self._press_evt.set()
 
     def _on_release(self, k):
-        if k == self._key:
+        if self._matches(k):
             self._held = False
 
     def wait_press(self):
         """Block until the key goes DOWN (one event per physical press)."""
         self._press_evt.wait()
         self._press_evt.clear()
+
+    def set_key(self, key):
+        """Update the monitored key dynamically."""
+        self._key_name = key if isinstance(key, str) else "home"
+        self._keys = get_key_set(self._key_name)
+        self._held = False
 
     def is_held(self) -> bool:
         return self._held

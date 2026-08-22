@@ -78,7 +78,7 @@ def transcribe(pcm: np.ndarray) -> str:
 
 
 class Ears:
-    def __init__(self, aggressiveness: int = 2, silence_ms: int = 480):
+    def __init__(self, aggressiveness: int = 1, silence_ms: int = 480):
         self.vad = webrtcvad.Vad(aggressiveness)
         self.silence_frames = silence_ms // FRAME_MS
 
@@ -111,7 +111,8 @@ class Ears:
                     # speakers are talking and barge-in isn't on: ignore
                     ring.clear()
                     continue
-                is_speech = self.vad.is_speech(mono.tobytes(), RATE)
+                rms = np.sqrt(np.mean(mono.astype(np.float32)**2))
+                is_speech = (rms >= 12.0) and self.vad.is_speech(mono.tobytes(), RATE)
                 if not in_utterance:
                     ring.append(mono)
                     if len(ring) > 8:
@@ -119,6 +120,11 @@ class Ears:
                     speech_run = speech_run + 1 if is_speech else 0
                     if speech_run >= OPEN_FRAMES:
                         in_utterance = True
+                        try:
+                            from backtalk import signals
+                            signals.set_state("listening")
+                        except Exception:
+                            pass
                         frames = ring[:]
                         silence_run = 0
                 else:
@@ -130,13 +136,23 @@ class Ears:
                         silence_run += 1
                     if silence_run >= self.silence_frames or \
                        len(frames) * FRAME_MS / 1000 > MAX_UTTER_S:
-                        if speech_total < 8:
-                            # <240ms of actual speech: a noise blip, not
+                        if speech_total < 5:
+                            # <150ms of actual speech: a noise blip, not
                             # a sentence — keep listening
                             in_utterance = False
+                            try:
+                                from backtalk import signals
+                                signals.set_state("idle")
+                            except Exception:
+                                pass
                             frames, ring = [], []
                             speech_run = speech_total = 0
                             continue
+                        try:
+                            from backtalk import signals
+                            signals.set_state("thinking")
+                        except Exception:
+                            pass
                         return transcribe(np.concatenate(frames))
 
 

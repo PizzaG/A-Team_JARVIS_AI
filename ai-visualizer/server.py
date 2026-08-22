@@ -10,6 +10,7 @@ import json
 import math
 import mimetypes
 import os
+import re
 import sys
 import threading
 import time
@@ -47,7 +48,9 @@ DEFAULTS = {
     "thinking_sound": False,
     "model": "qwen2.5-coder:14b",
     "ollama_url": "http://127.0.0.1:11434",
-    "permission_mode": "ask"
+    "permission_mode": "ask",
+    "mic_mode": "ptt",
+    "ptt_key": "right_alt"
 }
 
 def load_config():
@@ -59,6 +62,20 @@ def load_config():
             cfg.update(user)
         except Exception as e:
             print(f"[config] Error reading ai-visualizer.json: {e}")
+    
+    # Read mic settings from backtalk.json if present
+    bt_cfg_file = ROOT_DIR / "backtalk" / "backtalk.json"
+    if bt_cfg_file.exists():
+        try:
+            bt_data = json.loads(bt_cfg_file.read_text(encoding="utf-8"))
+            if "mic_mode" in bt_data:
+                cfg["mic_mode"] = bt_data["mic_mode"]
+            if "ptt_key" in bt_data:
+                cfg["ptt_key"] = bt_data["ptt_key"]
+            if "permission_mode" in bt_data:
+                cfg["permission_mode"] = bt_data["permission_mode"]
+        except Exception:
+            pass
     return cfg
 
 def save_config(cfg_updates):
@@ -82,9 +99,16 @@ def save_config(cfg_updates):
             bt_data["model"] = cfg_updates["model"]
         if "permission_mode" in cfg_updates:
             bt_data["permission_mode"] = cfg_updates["permission_mode"]
+        if "mic_mode" in cfg_updates:
+            bt_data["mic_mode"] = cfg_updates["mic_mode"]
+        if "ptt_key" in cfg_updates:
+            bt_data["ptt_key"] = cfg_updates["ptt_key"]
+        # Ensure barehands_state_dir is preserved
+        if "barehands_state_dir" not in bt_data:
+            bt_data["barehands_state_dir"] = str((ROOT_DIR / "barehands" / "state").resolve())
         bt_cfg_file.write_text(json.dumps(bt_data, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[config] Error saving backtalk.json: {e}")
     return cfg
 
 CFG = load_config()
@@ -186,6 +210,46 @@ def get_ollama_models(base_url="http://127.0.0.1:11434"):
             return [m["name"] for m in data.get("models", [])]
     except Exception:
         return []
+
+def extract_raw_tool_calls(text: str) -> list[dict]:
+    if not text:
+        return []
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if len(lines) >= 2 and lines[-1].strip() == "```":
+            cleaned = "\n".join(lines[1:-1]).strip()
+    if cleaned.startswith("<tool_call>") and cleaned.endswith("</tool_call>"):
+        cleaned = cleaned[11:-12].strip()
+
+    try:
+        data = json.loads(cleaned)
+        if isinstance(data, dict) and "name" in data and ("arguments" in data or "parameters" in data):
+            args = data.get("arguments") if "arguments" in data else data.get("parameters", {})
+            return [{
+                "id": "call_raw_0",
+                "type": "function",
+                "function": {
+                    "name": data["name"],
+                    "arguments": json.dumps(args) if isinstance(args, dict) else str(args)
+                }
+            }]
+    except Exception:
+        pass
+
+    match = re.search(r'\{\s*"name"\s*:\s*"([a-zA-Z0-9_-]+)"\s*,\s*"(?:arguments|parameters)"\s*:\s*(\{.*?\})\s*\}', text, re.DOTALL)
+    if match:
+        fn_name = match.group(1)
+        raw_args = match.group(2)
+        return [{
+            "id": "call_raw_0",
+            "type": "function",
+            "function": {
+                "name": fn_name,
+                "arguments": raw_args
+            }
+        }]
+    return []
 
 class UnifiedHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -332,6 +396,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
 
             accumulated_text = ""
             tool_calls_acc = {}
+            is_json_tool_output = False
+            streamed_any_text = False
 
             try:
                 with urllib.request.urlopen(req, timeout=60.0) as resp:
@@ -356,9 +422,15 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                         text = delta.get("content") or ""
                         if text:
                             accumulated_text += text
-                            if not self._sse_send({"type": "delta", "content": text}):
-                                set_web_state("idle")
-                                return
+                            # Check if the output looks like raw JSON tool call
+                            if not is_json_tool_output and (accumulated_text.strip().startswith(("{", "```", "<tool_call>"))):
+                                is_json_tool_output = True
+                            
+                            if not is_json_tool_output:
+                                streamed_any_text = True
+                                if not self._sse_send({"type": "delta", "content": text}):
+                                    set_web_state("idle")
+                                    return
 
                         tc_delta = delta.get("tool_calls")
                         if tc_delta:
@@ -384,11 +456,16 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 set_web_state("idle")
                 return
 
+            if not tool_calls_acc and accumulated_text:
+                raw_tcs = extract_raw_tool_calls(accumulated_text)
+                if raw_tcs:
+                    tool_calls_acc = {i: tc for i, tc in enumerate(raw_tcs)}
+
             if tool_calls_acc:
                 tool_list = list(tool_calls_acc.values())
                 CHAT_HISTORY.append({
                     "role": "assistant",
-                    "content": accumulated_text or None,
+                    "content": None if is_json_tool_output else (accumulated_text or None),
                     "tool_calls": tool_list
                 })
 
@@ -423,6 +500,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 continue
             else:
                 if accumulated_text:
+                    if is_json_tool_output and not streamed_any_text:
+                        self._sse_send({"type": "delta", "content": accumulated_text})
                     CHAT_HISTORY.append({"role": "assistant", "content": accumulated_text})
                 break
 

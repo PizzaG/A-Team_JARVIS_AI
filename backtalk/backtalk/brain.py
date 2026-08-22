@@ -36,6 +36,45 @@ from backtalk.vlog import log
 _SENTENCE_END = re.compile(r"(?<=[.!?\n])\s+")
 SESSION_FILE = os.path.join(CFG.get("signals_dir") or ".", ".backtalk_session")
 
+def extract_raw_tool_calls(text: str) -> list[dict]:
+    if not text:
+        return []
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if len(lines) >= 2 and lines[-1].strip() == "```":
+            cleaned = "\n".join(lines[1:-1]).strip()
+    if cleaned.startswith("<tool_call>") and cleaned.endswith("</tool_call>"):
+        cleaned = cleaned[11:-12].strip()
+
+    try:
+        data = json.loads(cleaned)
+        if isinstance(data, dict) and "name" in data and ("arguments" in data or "parameters" in data):
+            args = data.get("arguments") if "arguments" in data else data.get("parameters", {})
+            return [{
+                "id": "call_raw_0",
+                "type": "function",
+                "function": {
+                    "name": data["name"],
+                    "arguments": json.dumps(args) if isinstance(args, dict) else str(args)
+                }
+            }]
+    except Exception:
+        pass
+
+    match = re.search(r'\{\s*"name"\s*:\s*"([a-zA-Z0-9_-]+)"\s*,\s*"(?:arguments|parameters)"\s*:\s*(\{.*?\})\s*\}', text, re.DOTALL)
+    if match:
+        fn_name = match.group(1)
+        raw_args = match.group(2)
+        return [{
+            "id": "call_raw_0",
+            "type": "function",
+            "function": {
+                "name": fn_name,
+                "arguments": raw_args
+            }
+        }]
+    return []
 
 class WarmBrain:
     def __init__(self, model: str | None = None, can_use_tool=None, resume_id: str | None = None):
@@ -198,16 +237,16 @@ class WarmBrain:
                         text_chunk = delta.get("content") or ""
                         if text_chunk:
                             accumulated_content += text_chunk
-                            sentence_buffer += text_chunk
-
-                            while True:
-                                m = _SENTENCE_END.search(sentence_buffer)
-                                if not m:
-                                    break
-                                sentence = sentence_buffer[:m.end()].strip()
-                                sentence_buffer = sentence_buffer[m.end():]
-                                if sentence:
-                                    yield sentence
+                            if not accumulated_content.strip().startswith(("{", "```", "<tool_call>")):
+                                sentence_buffer += text_chunk
+                                while True:
+                                    m = _SENTENCE_END.search(sentence_buffer)
+                                    if not m:
+                                        break
+                                    sentence = sentence_buffer[:m.end()].strip()
+                                    sentence_buffer = sentence_buffer[m.end():]
+                                    if sentence:
+                                        yield sentence
 
                         # 2. Tool calls delta
                         delta_tools = delta.get("tool_calls")
@@ -229,10 +268,17 @@ class WarmBrain:
                                     if "arguments" in tc.get("function", {}):
                                         tool_calls_accumulator[idx]["function"]["arguments"] += tc["function"]["arguments"]
 
+                if not tool_calls_accumulator and accumulated_content:
+                    raw_tcs = extract_raw_tool_calls(accumulated_content)
+                    if raw_tcs:
+                        tool_calls_accumulator = {i: tc for i, tc in enumerate(raw_tcs)}
+
                 # Flush remaining sentence buffer if any
                 remaining_sentence = sentence_buffer.strip()
                 if remaining_sentence and not tool_calls_accumulator:
                     yield remaining_sentence
+                elif not tool_calls_accumulator and accumulated_content and not sentence_buffer and not accumulated_content.strip().startswith(("{", "```", "<tool_call>")):
+                    yield accumulated_content.strip()
 
             except Exception as e:
                 log(f"[brain] exception during ask_stream: {e}")

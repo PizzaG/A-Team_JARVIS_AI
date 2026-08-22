@@ -241,6 +241,40 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           justify-content:center; color:#8ff0e4; text-align:center;
           font:16px "SF Mono",Menlo,monospace; z-index:1000; background:#000;
           flex-direction:column; gap:12px; }
+  #voice-hud {
+    position: absolute; top: 14px; right: 16px; z-index: 998;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(10, 20, 24, 0.75); backdrop-filter: blur(10px);
+    border: 1px solid rgba(143, 240, 228, 0.35); border-radius: 20px;
+    padding: 6px 14px; color: #8ff0e4; font: 12px "SF Mono", Menlo, monospace;
+    cursor: pointer; user-select: none; transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  #voice-hud:hover { border-color: rgba(143, 240, 228, 0.8); background: rgba(16, 32, 38, 0.9); }
+  #voice-hud .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #3ddc84;
+    box-shadow: 0 0 8px #3ddc84;
+  }
+  #voice-modal {
+    position: absolute; top: 52px; right: 16px; z-index: 999; display: none;
+    background: rgba(8, 14, 18, 0.92); backdrop-filter: blur(16px);
+    border: 1px solid rgba(143, 240, 228, 0.4); border-radius: 12px;
+    padding: 16px; color: #e6fff0; font: 12px "SF Mono", Menlo, monospace;
+    width: 270px; box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+  }
+  #voice-modal .title { color: #8ff0e4; font-weight: bold; margin-bottom: 12px; letter-spacing: 0.1em; }
+  #voice-modal .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  #voice-modal select {
+    background: rgba(20, 36, 42, 0.9); color: #8ff0e4; border: 1px solid rgba(143, 240, 228, 0.3);
+    border-radius: 6px; padding: 4px 8px; font: 11px "SF Mono", Menlo, monospace; outline: none;
+  }
+  #voice-modal .btn-toggle {
+    background: rgba(61, 220, 132, 0.15); border: 1px solid #3ddc84; color: #8ff0e4;
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; width: 100%; text-align: center;
+    margin-top: 6px; font-weight: bold; font: 11px "SF Mono", Menlo, monospace;
+  }
+  #voice-modal .btn-toggle:hover { background: rgba(61, 220, 132, 0.3); }
+  body.overlay #voice-hud, body.overlay #voice-modal { display: none !important; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -285,9 +319,42 @@ setTimeout(function () {
 <video id="cam" autoplay playsinline muted></video>
 <div id="behind"></div>
 <div id="boot">BAREHANDS<br><span style="color:#a8d8cf;font-size:12px;letter-spacing:0.22em">by jaredrhod</span><br><span style="color:#a8d8cf;font-size:13px">loading hand tracker… allow the camera when asked</span></div>
-<div id="hint">tap the RING = orbs · tap an orb = its tree · TAP a card = open · pinch-drag = move · hold still ~1s = 3D rotate · two hands = scale · TAP an open item = close · CLAP (palms together, fingers up) = ring center-stage · CLAW: flash open, claw, aim, hold the strain 2s, SNAP = force pull · empty pinch dragged sideways = explode scrub · R respawn / C camera / D debug</div>
+<div id="hint">tap the RING = orbs · tap an orb = its tree · TAP a card = open · pinch-drag = move · hold still ~1s = 3D rotate · two hands = scale · TAP an open item = close · CLAP = clear · V/M toggle Hands-Free · R respawn / C camera / D debug</div>
 <div id="debug"></div>
 <div id="toast"></div>
+
+<div id="voice-hud" title="Click to change Voice/Mic Mode (Shortcut: V)">
+  <div class="dot" id="vhud-dot"></div>
+  <span id="vhud-label">PTT: RIGHT ALT</span>
+</div>
+<div id="voice-modal">
+  <div class="title">VOICE ENGINE CONTROLS</div>
+  <div class="row">
+    <span>Mode:</span>
+    <select id="vhud-mode-select">
+      <option value="ptt">Push-to-Talk</option>
+      <option value="open">Hands-Free (Open Mic)</option>
+    </select>
+  </div>
+  <div class="row" id="vhud-key-row">
+    <span>PTT Key:</span>
+    <select id="vhud-key-select">
+      <option value="right_alt">Right Alt (Laptop)</option>
+      <option value="right_ctrl">Right Ctrl</option>
+      <option value="right_shift">Right Shift</option>
+      <option value="`">Backtick (`)</option>
+      <option value="\">Backslash (\)</option>
+      <option value="home">Home Key</option>
+      <option value="end">End Key</option>
+      <option value="f8">F8 Key</option>
+      <option value="f12">F12 Key</option>
+    </select>
+  </div>
+  <button class="btn-toggle" id="vhud-toggle-btn">TOGGLE HANDS-FREE</button>
+  <div style="font-size:10px; color:rgba(143,240,228,0.5); margin-top:8px; text-align:center;">
+    Press 'V' to toggle Hands-Free anytime
+  </div>
+</div>
 
 <script type="module">
 import { HandLandmarker, FilesetResolver } from
@@ -1582,6 +1649,83 @@ async function cycleCam() {
   lastVideoTs = -1;
 }
 
+let currentVoiceConfig = { mic_mode: "ptt", ptt_key: "right_alt" };
+
+async function loadVoiceConfig() {
+  try {
+    const res = await fetch("/api/voice-config");
+    if (res.ok) {
+      currentVoiceConfig = await res.json();
+      updateVoiceHUD();
+    }
+  } catch (e) {}
+}
+
+function updateVoiceHUD() {
+  const dot = document.getElementById("vhud-dot");
+  const lbl = document.getElementById("vhud-label");
+  const modeSel = document.getElementById("vhud-mode-select");
+  const keySel = document.getElementById("vhud-key-select");
+  const keyRow = document.getElementById("vhud-key-row");
+
+  if (modeSel) modeSel.value = currentVoiceConfig.mic_mode || "ptt";
+  if (keySel) keySel.value = currentVoiceConfig.ptt_key || "right_alt";
+  if (keyRow) keyRow.style.display = currentVoiceConfig.mic_mode === "open" ? "none" : "flex";
+
+  const keyMap = {
+    "right_alt": "RIGHT ALT", "right_ctrl": "RIGHT CTRL", "right_shift": "RIGHT SHIFT",
+    "`": "BACKTICK", "\\": "BACKSLASH", "home": "HOME", "end": "END", "f8": "F8", "f12": "F12"
+  };
+  const keyName = keyMap[currentVoiceConfig.ptt_key] || (currentVoiceConfig.ptt_key || "").replace("_", " ").toUpperCase();
+
+  if (currentVoiceConfig.mic_mode === "open") {
+    if (dot) dot.style.background = "#3ddc84";
+    if (lbl) lbl.textContent = "🎧 HANDS-FREE";
+  } else {
+    if (dot) dot.style.background = "#8ff0e4";
+    if (lbl) lbl.textContent = `🎙️ PTT: ${keyName}`;
+  }
+}
+
+function toggleVoiceModal() {
+  const m = document.getElementById("voice-modal");
+  if (m) m.style.display = m.style.display === "block" ? "none" : "block";
+}
+
+async function onVoiceModalChange() {
+  const mode = document.getElementById("vhud-mode-select").value;
+  const key = document.getElementById("vhud-key-select").value;
+  currentVoiceConfig.mic_mode = mode;
+  currentVoiceConfig.ptt_key = key;
+  updateVoiceHUD();
+  try {
+    await fetch("/api/voice-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(currentVoiceConfig)
+    });
+    toast(`Voice: ${mode === 'open' ? 'Hands-Free (Open Mic)' : 'PTT (' + key + ')'}`, 2500);
+  } catch (e) {}
+}
+
+async function toggleMicModeQuick() {
+  currentVoiceConfig.mic_mode = currentVoiceConfig.mic_mode === "open" ? "ptt" : "open";
+  updateVoiceHUD();
+  try {
+    await fetch("/api/voice-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(currentVoiceConfig)
+    });
+    toast(`Switched to: ${currentVoiceConfig.mic_mode === 'open' ? 'Hands-Free (Open Mic)' : 'Push-to-Talk'}`, 2500);
+  } catch (e) {}
+}
+
+document.getElementById("voice-hud")?.addEventListener("click", toggleVoiceModal);
+document.getElementById("vhud-mode-select")?.addEventListener("change", onVoiceModalChange);
+document.getElementById("vhud-key-select")?.addEventListener("change", onVoiceModalChange);
+document.getElementById("vhud-toggle-btn")?.addEventListener("click", toggleMicModeQuick);
+
 addEventListener("keydown", e => {
   // live respawn: re-read the notes AND props trees from disk before
   // redrawing — a freshly dropped file appears on a plain R press
@@ -1591,6 +1735,11 @@ addEventListener("keydown", e => {
   if (e.key === "p" || e.key === "P") {
     SAMPLER = { until: performance.now() + 4000, r: [], h8: [], h12: [], h16: [], h20: [], s: [], a: [] };
     toast("OMNI sampler: hold the pose for 4 seconds…", 4000);
+  }
+  if (e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA" && e.target.tagName !== "SELECT") {
+    if (e.key === "v" || e.key === "V" || e.key === "m" || e.key === "M") {
+      toggleMicModeQuick();
+    }
   }
 });
 
@@ -2031,6 +2180,7 @@ async function boot() {
     minHandPresenceConfidence: 0.5 });
   document.getElementById("boot").remove();
   await loadTree();
+  loadVoiceConfig();
   spawnStage();
   toast("barehands v1.0", 2000);  // build fingerprint
   let lastT = performance.now();

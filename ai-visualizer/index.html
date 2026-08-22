@@ -804,8 +804,7 @@ let indexStateInFlight = false;
 setInterval(async () => {
   if (isPttHeld || isRecording || indexStateInFlight) return;
   // If Barehands air board is open, let barehands manage state
-  const stageModal = document.getElementById("barehands-modal");
-  if (stageModal && stageModal.style.display !== "none") return;
+  if (currentMode === "barehands") return;
   
   indexStateInFlight = true;
   try {

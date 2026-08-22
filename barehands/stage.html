@@ -455,7 +455,7 @@ setTimeout(function () {
 </script>
 <video id="cam" autoplay playsinline muted></video>
 <div id="behind"></div>
-<div id="boot">BAREHANDS<br><span style="color:#a8d8cf;font-size:12px;letter-spacing:0.22em">by jaredrhod</span><br><span style="color:#a8d8cf;font-size:13px">loading hand tracker… allow the camera when asked</span></div>
+<div id="boot">BAREHANDS<br><span style="color:#a8d8cf;font-size:12px;letter-spacing:0.22em">by jaredrhod</span><br><span id="boot-status" style="color:#a8d8cf;font-size:13px">loading hand tracker… allow the camera when asked</span></div>
 <div id="hint">tap the RING = orbs · tap an orb = its tree · TAP a card = open · pinch-drag = move · hold still ~1s = 3D rotate · two hands = scale · TAP an open item = close · CLAP = clear · V/M toggle Hands-Free · R respawn / C camera / D debug</div>
 <div id="debug"></div>
 <div id="toast"></div>
@@ -2257,7 +2257,13 @@ async function startCam(deviceId) {
   toast(`camera: ${live.label || "default"}`);
 }
 
+function setBootStatus(msg) {
+  const el = document.getElementById("boot-status");
+  if (el) el.textContent = msg;
+}
+
 async function pickInitialCam() {
+  setBootStatus("opening camera… (allow camera access when prompted)");
   // permission first (labels are blank until granted), then re-pick by name
   await startCam(null);
   const want = Q.get("cam") || localStorage.getItem("stage-cam") || "";
@@ -2349,7 +2355,11 @@ async function resumeCam() {
     toast("camera error: " + (e.message || "access denied"));
   }
   if (!landmarker) {
-    await initTracker();
+    try {
+      await initTracker();
+    } catch (e) {
+      console.warn("Tracker error:", e);
+    }
   }
 }
 
@@ -2578,7 +2588,6 @@ function beginGrab(c, i, cur) {
     if (c.type === "orb") {
       c.mode = "pinned";
       c.tapX = cur.x; c.tapY = cur.y;
-      openBrowser(c.def.orb, c.x, c.y);
     } else if (c.type === "panel" || c.type === "browser") {
       // v3.3/v3.8 (Jared: "I need a dedicated place I can grab...
       // make the same rules apply to notes"): THE GRIP BAR on notes
@@ -2649,13 +2658,20 @@ function endGrab(c, i, cur) {
     c.stretch = null;
     const h = cur.history;
     c.hch = 0;                          // hold-charge / movable glow ends
+    // Intentional tap to open orb tree
+    if (c.type === "orb") {
+      const oMs = performance.now() - (cur.grabT || 0);
+      const oTrav = Math.hypot(cur.x - (c.tapX || cur.x),
+                               cur.y - (c.tapY || cur.y));
+      if (oMs >= 70 && oMs < 550 && oTrav < 40) openBrowser(c.def.orb, c.x, c.y);
+    }
     // shelf v3: a quick, near-still release on a browser row = the TAP
     // (folders unfold, notes open, props stage, widgets summon)
     if (c.type === "browser" && c.mode === "scroll") {
       const bMs = performance.now() - (cur.grabT || 0);
       const bTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (bMs < 650 && bTrav < 60) browserTap(c, cur);
+      if (bMs >= 70 && bMs < 550 && bTrav < 35) browserTap(c, cur);
     }
     // v3.3/v3.8: a quick tap on the GRIP BAR closes — notes and
     // folder panes alike
@@ -2664,7 +2680,7 @@ function endGrab(c, i, cur) {
       const gMs = performance.now() - (cur.grabT || 0);
       const gTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (gMs < 650 && gTrav < 60) killItem(c);
+      if (gMs >= 70 && gMs < 550 && gTrav < 35) killItem(c);
       c.barGrab = false;
     }
     // GESTURE v3 (2026-08-14, Jared's spec — "make it a single pinch"):
@@ -2677,7 +2693,7 @@ function endGrab(c, i, cur) {
       const tMs = performance.now() - (cur.grabT || 0);
       const tTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (tMs < 650 && tTrav < 60) openPanel(c);
+      if (tMs >= 80 && tMs < 550 && tTrav < 35) openPanel(c);
     }
     // Bare-Hands Gesture Controls for Video (Play/Pause/Unmute on screen tap, Close/Sound on bar tap):
     if (c.type === "video" && !pullFresh && !c.flying) {
@@ -3011,14 +3027,57 @@ async function boot() {
       }
       const seen = new Set();
       (res && res.landmarks || []).forEach((lms, i) => {
+        const W0 = lms[0], M9 = lms[9];
+        const span = Math.hypot(W0.x - M9.x, W0.y - M9.y);
+        // v3.9.3: palm-axis upness (1 = fingers straight up) — the clap
+        // only listens to prayer-vertical hands (Jared's rule)
+        const handUp = span > 0 ? (W0.y - M9.y) / span : 0;
+
+        // Head-rest & inverted hand suppression
+        const isHeadRest = (W0.y < 0.28 && handUp < 0.25) || (W0.y < 0.16) || (handUp < -0.30);
+        if (isHeadRest) {
+          dropCursor(i);
+          return;
+        }
+
+        // 3D vector segment angle helper
+        const seg = (a, b) => {
+          const dx = lms[b].x - lms[a].x, dy = lms[b].y - lms[a].y,
+                dz = (lms[b].z || 0) - (lms[a].z || 0);
+          const l = Math.hypot(dx, dy, dz) || 1;
+          return [dx / l, dy / l, dz / l];
+        };
+        const curl = (mcp, pip, dip, tip) => {
+          const p = seg(mcp, pip), d = seg(dip, tip);
+          return p[0] * d[0] + p[1] * d[1] + p[2] * d[2];
+        };
+
+        const c8  = curl(5, 6, 7, 8);
+        const c12 = curl(9, 10, 11, 12);
+        const c16 = curl(13, 14, 15, 16);
+        const c20 = curl(17, 18, 19, 20);
+
+        const extArr = [[8, 5], [12, 9], [16, 13], [20, 17]].map(([t, m]) =>
+          Math.hypot(lms[t].x - W0.x, lms[t].y - W0.y) >
+          1.40 * Math.hypot(lms[m].x - W0.x, lms[m].y - W0.y));
+        const extFingers = extArr.filter(Boolean).length;
+        const holdingI = items.some(k => k.grabbedBy.includes(i));
+
+        // Parked Hand / Chin & Cheek Rest / Closed Fist Suppression:
+        // When resting chin/cheek on hand or holding a closed resting fist,
+        // no fingers are extended (extFingers === 0 or index curl c8 < 0.25)
+        // and hand is not actively holding an item.
+        const isRestingHand = !holdingI && (extFingers === 0 || (extFingers <= 1 && c8 < 0.25 && c12 < 0.25));
+        if (isRestingHand) {
+          dropCursor(i);
+          return;
+        }
+
         seen.add(i);
         const cur = getCursor(i);
         const tip = toScreen(lms[8]), thumb = toScreen(lms[4]);
-        const span = Math.hypot(lms[0].x - lms[9].x, lms[0].y - lms[9].y);
-        // v3.9.3: palm-axis upness (1 = fingers straight up) — the clap
-        // only listens to prayer-vertical hands (Jared's rule)
-        cur.handUp = span > 0 ? (lms[0].y - lms[9].y) / span : 0;
-        const _w = toScreen(lms[0]), _m = toScreen(lms[9]);
+        cur.handUp = handUp;
+        const _w = toScreen(W0), _m = toScreen(M9);
         cur.wristX = _w.x; cur.wristY = _w.y;   // v3.9.7: the prayer read
         cur.mcpX = _m.x; cur.mcpY = _m.y;
         const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
@@ -3026,15 +3085,7 @@ async function boot() {
         const px = (tip.x + thumb.x) / 2, py = (tip.y + thumb.y) / 2;
         cur.x += (px - cur.x) * 0.80; cur.y += (py - cur.y) * 0.80;
         cur.history.push({ x: cur.x, y: cur.y, t: now });
-        if (cur.history.length > 10) cur.history.shift();
-
         const wasPinched = cur.pinched;
-        const W0 = lms[0];
-        const extArr = [[8, 5], [12, 9], [16, 13], [20, 17]].map(([t, m]) =>
-          Math.hypot(lms[t].x - W0.x, lms[t].y - W0.y) >
-          1.45 * Math.hypot(lms[m].x - W0.x, lms[m].y - W0.y));
-        const extFingers = extArr.filter(Boolean).length;
-        const holdingI = items.some(k => k.grabbedBy.includes(i));
         
         let hspd = 0;
         const hh0 = cur.history;
@@ -3053,7 +3104,7 @@ async function boot() {
 
         const pinched = !handGarbage && (wasPinched
           ? !openRead
-          : (ratio <= 0.44 || holdingI));
+          : (ratio <= 0.40 || holdingI));
 
         cur.pinched = pinched;
         if (cur.pinched) cur.lastPinchT = now;
@@ -3954,8 +4005,10 @@ if (ROLE === "render") {
   renderLoop();
 } else {
   boot().catch(e => {
-    document.getElementById("boot").innerHTML =
-      `STAGE FAILED TO BOOT<br><span style="color:#ff6666;font-size:13px">${e.message}</span>`;
+    console.error("Boot error:", e);
+    const b = document.getElementById("boot");
+    if (b) b.innerHTML = `STAGE FAILED TO BOOT<br><span style="color:#ff6666;font-size:13px">${e.message}</span>`;
+    toast("Boot error: " + e.message, 5000);
   });
 }
 </script>

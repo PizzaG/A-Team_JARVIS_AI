@@ -892,7 +892,14 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             self._send_text("Not found", 404)
             return
 
-        ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+        if target.suffix == ".wasm":
+            ctype = "application/wasm"
+        elif target.suffix in (".mjs", ".js"):
+            ctype = "text/javascript"
+        elif target.suffix == ".task":
+            ctype = "application/octet-stream"
+        else:
+            ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         self._send_bytes(target.read_bytes(), ctype)
 
     def _send_json(self, obj, code=200):

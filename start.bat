@@ -1,60 +1,77 @@
 @echo off
-rem fullstack-agent: give your AI a full stack — memory, voice, face, hands.
-rem Copyright (C) 2026 Jared Rhodenizer
-rem
-rem This program is free software: you can redistribute it and/or modify
-rem it under the terms of the GNU Affero General Public License as published
-rem by the Free Software Foundation, either version 3 of the License, or
-rem (at your option) any later version.
-rem
-rem This program is distributed in the hope that it will be useful,
-rem but WITHOUT ANY WARRANTY; without even the implied warranty of
-rem MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-rem GNU Affero General Public License for more details.
-rem
-rem You should have received a copy of the GNU Affero General Public License
-rem along with this program. If not, see <https://www.gnu.org/licenses/>.
-rem
+rem fullstack-agent: Local AI Agent with Memory, Voice, Face, and Hands.
+rem Copyright (C) 2026 Jared Rhodenizer, local AI edition.
 rem SPDX-License-Identifier: AGPL-3.0-or-later
 
-rem Starts the agent's pieces. Each server gets its own window;
-rem close the windows (or this one for the voice) to stop.
-rem   start.bat          everything installed
-rem   start.bat voice    the voice and the face (no hands)
-rem   start.bat hands    the voice and the hands board (no face)
+cd /d "%~dp0"
+title JARVIS - Fullstack Local AI Agent
 
-cd /d "%~dp0.."
+echo =========================================================
+echo   JARVIS - FULLSTACK LOCAL AI AGENT (Ollama Edition)
+echo =========================================================
+echo.
 
-if exist "ai-visualizer\" if not "%1"=="hands" (
-  echo   face:  starting
-  start "agent face" cmd /c "cd ai-visualizer && run.bat"
+rem Detect Python Command
+set "PYCMD="
+where py >nul 2>nul && set "PYCMD=py"
+if "%PYCMD%"=="" where python >nul 2>nul && set "PYCMD=python"
+if "%PYCMD%"=="" (
+  echo [ERROR] Python was not found on PATH. Please install Python 3.10+ or add it to PATH.
+  pause
+  exit /b 1
 )
 
-if exist "barehands\" if not "%1"=="voice" (
-  echo   hands: starting
-  rem if errorlevel reads the where result at run time. A percent-style
-  rem check here would expand when this block is parsed and test a stale value.
-  where py >nul 2>nul
-  if errorlevel 1 (
-    start "agent hands" cmd /c "cd barehands && python server.py"
-  ) else (
-    start "agent hands" cmd /c "cd barehands && py server.py"
+rem Check Ollama connectivity
+echo [*] Checking local Ollama connection...
+curl.exe -s http://127.0.0.1:11434/api/tags >nul 2>nul
+if errorlevel 1 (
+  echo [WARNING] Ollama is not responding at http://127.0.0.1:11434!
+  echo           Please launch Ollama Desktop or run ollama serve.
+) else (
+  echo [OK] Ollama is running and ready.
+)
+echo.
+
+rem Ensure Memory Vault is initialized
+echo [*] Initializing Memory Vault...
+%PYCMD% vault_manager.py >nul 2>nul
+
+rem Launch Unified Web Dashboard & 3D Face (Port 8790)
+if exist "ai-visualizer" (
+  echo [1/2] Launching Unified Web Dashboard on http://127.0.0.1:8790/ ...
+  start "JARVIS Web Dashboard & 3D Face" %PYCMD% ai-visualizer\server.py
+  ping 127.0.0.1 -n 2 >nul
+)
+
+rem Optional Barehands
+if exist "barehands" (
+  if not "%1"=="voice" (
+    echo [*] Starting Barehands gesture server...
+    start "JARVIS Hands" %PYCMD% barehands\server.py
   )
 )
 
-if exist "backtalk\" (
-  echo   voice: starting in this window. Close it to hang up.
-  cd backtalk
-  rem Self-repair: reconcile the voice line's packages before launch
-  rem (fast when current; heals a half-installed environment).
-  uv sync -q --inexact >nul 2>nul
-  uv run python -m backtalk.main
-  rem A clean goodbye exits 0 and the window may close. An error exits
-  rem nonzero, and the window HOLDS so the message can be read.
-  if errorlevel 1 (
+rem Launch Voice Engine (Backtalk)
+if exist "backtalk" (
+  if not "%1"=="web" (
+    echo [2/2] Starting Voice Engine in this window...
+    echo       Hold your talk key - HOME by default - and speak.
+    echo       Press Ctrl-C or say goodbye jarvis to exit.
     echo.
-    echo   The voice line stopped with an error. The message is above.
-    echo   The log lives in backtalk\logs\backtalk.log
-    pause
+    cd /d "%~dp0backtalk"
+    where uv >nul 2>nul
+    if errorlevel 1 (
+      %PYCMD% -m backtalk.main
+    ) else (
+      uv run python -m backtalk.main
+    )
+  ) else (
+    echo Web dashboard is running at http://127.0.0.1:8790/
+    echo Press any key to close this window.
+    pause >nul
   )
+) else (
+  echo Web dashboard is running at http://127.0.0.1:8790/
+  echo Press any key to close this window.
+  pause >nul
 )

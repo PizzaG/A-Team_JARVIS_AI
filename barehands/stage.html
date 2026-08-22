@@ -1609,7 +1609,19 @@ function browserRefresh(b) {
   b.rows = browserRows(b);
   b.rowTuples = b.rows.map(r => [r.d, r.t, r.k, r.o || 0]);
   b.rowsV = (b.rowsV || 0) + 1;
-  b.body.innerHTML = browserRowsHTML(b.rowTuples);
+  
+  if (b.rows.length === 0) {
+    const isLoaded = (b.bkind === "props" ? PROPSTREE : (TREES && TREES[b.bkind]));
+    if (!isLoaded) {
+      b.body.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.8;font-family:monospace;letter-spacing:1px;">` +
+                         `<div style="font-size:28px;margin-bottom:12px;">📁</div>Loading folder...</div>`;
+    } else {
+      b.body.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.6;font-family:monospace;">(No files found)</div>`;
+    }
+  } else {
+    b.body.innerHTML = browserRowsHTML(b.rowTuples);
+  }
+
   const box = b.body.parentElement.clientHeight;
   const maxS = Math.max(0, b.body.offsetHeight - box + 40);
   b.scrollY = Math.min(b.scrollY || 0, maxS);
@@ -1659,9 +1671,22 @@ function openBrowser(kind, ox, oy) {
   items.push(b);
   browserRefresh(b);
 
-  loadTree().then(() => {
-    if (b.el && b.el.isConnected) browserRefresh(b);
-  });
+  if (kind !== "props") {
+    fetch("/tree?orb=" + kind).then(r => r.ok ? r.json() : null).then(tree => {
+      if (tree) {
+        if (!TREES) TREES = [];
+        TREES[kind] = tree;
+        if (b.el && b.el.isConnected) browserRefresh(b);
+      }
+    }).catch(() => {});
+  } else {
+    fetch("/props").then(r => r.ok ? r.json() : null).then(props => {
+      if (props) {
+        PROPSTREE = props;
+        if (b.el && b.el.isConnected) browserRefresh(b);
+      }
+    }).catch(() => {});
+  }
 }
 
 function flashRow(container, i) {

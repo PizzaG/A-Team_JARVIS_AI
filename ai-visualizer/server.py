@@ -71,6 +71,72 @@ def orb_root(i):
     except Exception:
         return None
 
+TREE_CACHE = {}
+TREE_CACHE_LOCK = threading.Lock()
+
+def scan_orb_tree(idx):
+    root = orb_root(idx)
+    if root is None or not root.is_dir():
+        return {"name": "?", "notes": [], "dirs": []}
+    SKIP_NAMES = {".git", "node_modules", "__pycache__", ".venv", "venv", "build", "dist", ".gemini", ".system_generated", "CLAUDE.md", "AppData", "$RECYCLE.BIN"}
+    
+    def walk(d, depth=0):
+        if depth > 2:
+            return {"name": d.name, "notes": [], "dirs": []}
+        out = {"name": d.name, "notes": [], "dirs": []}
+        try:
+            entries = list(d.iterdir())
+            entries.sort(key=lambda x: (not x.is_dir(), x.name.lower()))
+            for p in entries[:150]:
+                if p.name in SKIP_NAMES or p.name.startswith("."):
+                    continue
+                if p.is_dir():
+                    if depth < 2:
+                        sub = walk(p, depth + 1)
+                        out["dirs"].append(sub)
+                    else:
+                        out["dirs"].append({"name": p.name, "notes": [], "dirs": []})
+                elif p.is_file():
+                    out["notes"].append({
+                        "title": p.name,
+                        "file": f"{int(idx)}/{p.relative_to(root).as_posix()}"
+                    })
+        except (PermissionError, OSError):
+            pass
+        return out
+
+    try:
+        tree = walk(root)
+        cfg = load_barehands_config()
+        if int(idx) < len(cfg.get("orbs", [])):
+            tree["name"] = cfg["orbs"][int(idx)].get("title", tree["name"])
+        return tree
+    except Exception:
+        return {"name": "?", "notes": [], "dirs": []}
+
+def refresh_all_trees():
+    global TREE_CACHE
+    cfg = load_barehands_config()
+    new_cache = {}
+    for i in range(len(cfg.get("orbs", []))):
+        if cfg["orbs"][i].get("kind") != "media":
+            new_cache[str(i)] = scan_orb_tree(str(i))
+    with TREE_CACHE_LOCK:
+        TREE_CACHE.update(new_cache)
+
+def start_tree_cache_refresher():
+    def loop():
+        while True:
+            try:
+                refresh_all_trees()
+            except Exception:
+                pass
+            time.sleep(15)
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
+
+start_tree_cache_refresher()
+
 _BAREHANDS_STATE = b"{}"
 _CMDS = []
 _ALLOWED_CMDS = ("add_img", "add_card", "clear", "reset", "hand", "give",
@@ -416,41 +482,17 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             elif url_path.startswith("/tree"):
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
                 idx = (q.get("orb") or ["0"])[0]
-                root = orb_root(idx)
-                if root is None or not root.is_dir():
-                    self._send_json({"name": "?", "notes": [], "dirs": []}, 404)
+                
+                with TREE_CACHE_LOCK:
+                    cached = TREE_CACHE.get(str(idx))
+                if cached is not None:
+                    self._send_json(cached)
                     return
 
-                SKIP_NAMES = {".git", "node_modules", "__pycache__", ".venv", "venv", "build", "dist", ".gemini", ".system_generated", "CLAUDE.md"}
-
-                def walk(d, depth=0):
-                    if depth > 5:
-                        return {"name": d.name, "notes": [], "dirs": []}
-                    out = {"name": d.name, "notes": [], "dirs": []}
-                    try:
-                        for p in sorted(d.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
-                            if p.name in SKIP_NAMES or p.name.startswith("."):
-                                continue
-                            if p.is_dir():
-                                sub = walk(p, depth + 1)
-                                if sub["notes"] or sub["dirs"]:
-                                    out["dirs"].append(sub)
-                            elif p.is_file():
-                                out["notes"].append({
-                                    "title": p.name,
-                                    "file": f"{int(idx)}/{p.relative_to(root).as_posix()}"
-                                })
-                    except (PermissionError, OSError):
-                        pass
-                    return out
-
-                try:
-                    tree = walk(root)
-                    cfg = load_barehands_config()
-                    tree["name"] = cfg["orbs"][int(idx)].get("title", tree["name"])
-                    self._send_json(tree)
-                except Exception:
-                    self._send_json({"name": "?", "notes": [], "dirs": []}, 500)
+                tree = scan_orb_tree(idx)
+                with TREE_CACHE_LOCK:
+                    TREE_CACHE[str(idx)] = tree
+                self._send_json(tree)
             elif url_path == "/props":
                 EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".webm", ".glb", ".gltf"}
                 media_root = (BAREHANDS_DIR / "media").resolve()

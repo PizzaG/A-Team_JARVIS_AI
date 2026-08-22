@@ -102,13 +102,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .card.orb { width:150px; height:150px; border-radius:50%; padding:0;
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
-  .card.orb h3 { margin:0; font-size:16px; }
-  .card.orb p { font-size:11.5px; color:#a8d8cf; margin:0; }
-  .card.imgcard { padding:6px; width:auto; overflow:hidden;
-      border-color:rgba(111,229,214,0.5);
-      box-shadow:0 8px 40px rgba(0,0,0,0.55), 0 0 30px rgba(111,229,214,0.20),
-                 inset 0 1px 0 rgba(191,255,245,0.35); }
-  .card.imgcard img { display:block; max-width:32vw; max-height:44vh;
+  .card.imgcard { padding:8px; width:auto; overflow:hidden;
+      min-width:240px; min-height:160px; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(172deg, rgba(20,45,45,0.7), rgba(8,20,22,0.55));
+      border-color:rgba(111,229,214,0.6);
+      box-shadow:0 12px 50px rgba(0,0,0,0.65), 0 0 35px rgba(0,229,255,0.25),
+                 inset 0 1px 0 rgba(191,255,245,0.45); }
+  .card.imgcard img { display:block; max-width:52vw; max-height:65vh;
+                      min-width:200px; min-height:120px; object-fit:contain;
                       border-radius:10px; pointer-events:none; }
   /* MATERIALIZE-AS-LIGHT (Jared's call 8/9): images ARRIVE as hologram
      — teal monochrome light + one scan sweep — then resolve to their
@@ -565,24 +566,26 @@ const foley = {
 };
 
 function makeImage(src, title) {
-  // THE FX LAYER: media/fx/ = naked render (no card chrome); .webm =
-  // silent looping alpha video. Both stay type "img" so every gesture —
-  // grab, stretch, fling, give-back, flash-close — works unchanged.
   const fx = /\/fx\//i.test(src);
   const vid = /\.webm(\?|$)/i.test(src);
   const el = document.createElement("div");
   el.className = "card imgcard" + (fx || vid ? " fxcard" : "");
   el.innerHTML = vid
     ? `<video src="${escT(src)}" autoplay loop muted playsinline></video>`
-    : `<img src="${escT(src)}" alt="">`;
+    : `<img src="${escT(src)}" alt="${escT(title || '')}">` +
+      `<div class="imgtitle" style="margin-top:8px;font-size:12px;color:#8ff0e4;font-family:monospace;text-align:center;letter-spacing:0.05em;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escT(title || '')}</div>`;
   BEHIND.appendChild(el);
-  el.classList.add("mat");                     // arrives as light...
-  setTimeout(() => el.classList.remove("mat"), 650);   // ...resolves true
-  return { el, id: UID++, type: "img",
-           def: { title: title || "", file: "", src,
-                  fx: fx || vid ? 1 : 0, vid: vid ? 1 : 0 },
-           x: innerWidth * 0.5, y: innerHeight * 0.42, scale: 1, vx: 0, vy: 0,
-           grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+  el.classList.add("mat");
+  setTimeout(() => el.classList.remove("mat"), 650);
+  const item = {
+    el, id: UID++, type: "img",
+    def: { title: title || "", file: "", src,
+           fx: fx || vid ? 1 : 0, vid: vid ? 1 : 0 },
+    x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
+    grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null
+  };
+  bindItemPointerEvents(item);
+  return item;
 }
 
 function summonWidget(w) {
@@ -1585,14 +1588,14 @@ function handleFileSelect(row, b) {
   if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) {
     const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
     const it = makeImage(src, t);
-    it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
+    it.x = innerWidth * 0.5; it.y = innerHeight * 0.44;
     it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
     items.push(it);
     killItem(b);
   } else if (["glb", "gltf"].includes(ext)) {
     const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
     const it = makeModel(src, t);
-    it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
+    it.x = innerWidth * 0.5; it.y = innerHeight * 0.44;
     it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
     items.push(it);
     killItem(b);

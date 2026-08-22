@@ -699,24 +699,8 @@ function makeVideo(src, title) {
       </div>
     </div>
     <div class="video-container">
-      <video src="${escT(src)}" playsinline></video>
+      <video src="${escT(src)}" loop autoplay playsinline muted></video>
       <div class="video-play-pulse">▶</div>
-      <div class="video-hud-bar">
-        <div class="video-scrub-wrap">
-          <div class="video-scrub-fill"></div>
-        </div>
-        <div class="video-controls-row">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <button class="video-btn btn-play" title="Play/Pause">▶</button>
-            <button class="video-btn btn-mute" title="Mute/Unmute">🔊</button>
-            <span class="video-time" style="font-size:11px;opacity:0.9;">00:00 / 00:00</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <button class="video-btn btn-loop" title="Loop" style="opacity:0.7;">🔁</button>
-            <button class="video-btn btn-fullscreen" title="Fullscreen">⛶</button>
-          </div>
-        </div>
-      </div>
     </div>
   `;
 
@@ -732,17 +716,8 @@ function makeVideo(src, title) {
   };
 
   const video = el.querySelector("video");
-  const playPulse = el.querySelector(".video-play-pulse");
-  const btnPlay = el.querySelector(".btn-play");
-  const btnMute = el.querySelector(".btn-mute");
-  const btnLoop = el.querySelector(".btn-loop");
-  const btnFs = el.querySelector(".btn-fullscreen");
-  const timeLbl = el.querySelector(".video-time");
-  const scrubWrap = el.querySelector(".video-scrub-wrap");
-  const scrubFill = el.querySelector(".video-scrub-fill");
   const holoBtn = el.querySelector(".holo-toggle");
   const closeBtn = el.querySelector(".btn-close");
-  const hudBar = el.querySelector(".video-hud-bar");
 
   let isHolo = false;
   holoBtn.onclick = (e) => {
@@ -757,103 +732,7 @@ function makeVideo(src, title) {
     killItem(item);
   };
 
-  function showPulse(isPaused) {
-    playPulse.textContent = isPaused ? "⏸" : "▶";
-    playPulse.classList.add("active");
-    setTimeout(() => playPulse.classList.remove("active"), 400);
-  }
-
-  function togglePlay() {
-    if (video.paused) {
-      video.play().then(() => {
-        btnPlay.textContent = "⏸";
-        showPulse(false);
-      }).catch(() => {});
-    } else {
-      video.pause();
-      btnPlay.textContent = "▶";
-      showPulse(true);
-    }
-  }
-
-  const videoContainer = el.querySelector(".video-container");
-  videoContainer.onclick = (e) => {
-    if (e.target.closest(".video-hud-bar")) return;
-    togglePlay();
-  };
-
-  btnPlay.onclick = (e) => {
-    e.stopPropagation();
-    togglePlay();
-  };
-
-  btnMute.onclick = (e) => {
-    e.stopPropagation();
-    video.muted = !video.muted;
-    btnMute.textContent = video.muted ? "🔇" : "🔊";
-  };
-
-  let isLoop = true;
-  video.loop = true;
-  btnLoop.style.opacity = "1";
-  btnLoop.onclick = (e) => {
-    e.stopPropagation();
-    isLoop = !isLoop;
-    video.loop = isLoop;
-    btnLoop.style.opacity = isLoop ? "1" : "0.5";
-  };
-
-  btnFs.onclick = (e) => {
-    e.stopPropagation();
-    if (video.requestFullscreen) video.requestFullscreen();
-    else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
-  };
-
-  video.ontimeupdate = () => {
-    if (!video.duration) return;
-    const pct = (video.currentTime / video.duration) * 100;
-    scrubFill.style.width = pct + "%";
-    timeLbl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
-  };
-
-  video.onloadedmetadata = () => {
-    timeLbl.textContent = `00:00 / ${formatTime(video.duration)}`;
-    video.muted = true;
-    video.play().then(() => {
-      btnPlay.textContent = "⏸";
-    }).catch(() => {});
-  };
-
-  let isScrubbing = false;
-  function seek(e) {
-    const rect = scrubWrap.getBoundingClientRect();
-    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    if (video.duration) {
-      video.currentTime = pos * video.duration;
-      scrubFill.style.width = (pos * 100) + "%";
-    }
-  }
-
-  scrubWrap.onpointerdown = (e) => {
-    e.stopPropagation();
-    isScrubbing = true;
-    seek(e);
-  };
-  window.addEventListener("pointermove", (e) => {
-    if (isScrubbing) seek(e);
-  });
-  window.addEventListener("pointerup", () => {
-    isScrubbing = false;
-  });
-
-  let hudHideTimer = null;
-  videoContainer.onmousemove = () => {
-    hudBar.style.opacity = "1";
-    clearTimeout(hudHideTimer);
-    hudHideTimer = setTimeout(() => {
-      if (!video.paused) hudBar.style.opacity = "0";
-    }, 2500);
-  };
+  video.play().catch(() => {});
 
   bindItemPointerEvents(item);
   return item;

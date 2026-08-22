@@ -693,10 +693,6 @@ function makeVideo(src, title) {
         <span style="font-size:15px;">🎬</span>
         <span>${escT(title || 'Video')}</span>
       </div>
-      <div class="actions">
-        <button class="btn-hud holo-toggle" title="Toggle Holographic Shader">🔮 Hologram</button>
-        <button class="btn-close" title="Close">✕</button>
-      </div>
     </div>
     <div class="video-container">
       <video src="${escT(src)}" loop autoplay playsinline muted></video>
@@ -716,22 +712,6 @@ function makeVideo(src, title) {
   };
 
   const video = el.querySelector("video");
-  const holoBtn = el.querySelector(".holo-toggle");
-  const closeBtn = el.querySelector(".btn-close");
-
-  let isHolo = false;
-  holoBtn.onclick = (e) => {
-    e.stopPropagation();
-    isHolo = !isHolo;
-    video.classList.toggle("holo-active", isHolo);
-    holoBtn.textContent = isHolo ? "✨ Natural" : "🔮 Hologram";
-  };
-
-  closeBtn.onclick = (e) => {
-    e.stopPropagation();
-    killItem(item);
-  };
-
   video.play().catch(() => {});
 
   bindItemPointerEvents(item);
@@ -763,10 +743,6 @@ function makeImage(src, title) {
         <span style="font-size:15px;">🖼️</span>
         <span>${escT(title || 'Photo')}</span>
       </div>
-      <div class="actions">
-        <button class="btn-hud holo-toggle" title="Toggle Holographic Shader">🔮 Hologram</button>
-        <button class="btn-close" title="Close">✕</button>
-      </div>
     </div>
     <div class="media-body">
       <div class="img-spinner" style="padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;">
@@ -790,21 +766,6 @@ function makeImage(src, title) {
 
   const img = el.querySelector("img");
   const spinner = el.querySelector(".img-spinner");
-  const holoBtn = el.querySelector(".holo-toggle");
-  const closeBtn = el.querySelector(".btn-close");
-
-  let isHolo = false;
-  holoBtn.onclick = (e) => {
-    e.stopPropagation();
-    isHolo = !isHolo;
-    img.classList.toggle("holo-active", isHolo);
-    holoBtn.textContent = isHolo ? "✨ Natural" : "🔮 Hologram";
-  };
-
-  closeBtn.onclick = (e) => {
-    e.stopPropagation();
-    killItem(item);
-  };
 
   img.onload = () => {
     if (spinner) spinner.remove();
@@ -2098,10 +2059,6 @@ async function openPanel(card) {
     <div class="corner-bl"></div>
     <div class="bar">
       <h3>${escT(title)}</h3>
-      <div style="display:flex;align-items:center;gap:8px;">
-        ${barActions}
-        <button class="btn-close" title="Close">✕</button>
-      </div>
     </div>
     <div class="body"><div class="scroll">${initialHtml}</div></div>`;
   BEHIND.appendChild(el);
@@ -2111,14 +2068,6 @@ async function openPanel(card) {
               body: el.querySelector(".scroll") };
   p.anim = { k: "in", t: 0 };
   p.el.style.opacity = "0.05";
-
-  const closeBtn = el.querySelector(".bar .btn-close");
-  if (closeBtn) {
-    closeBtn.onclick = (e) => {
-      e.stopPropagation();
-      killItem(p);
-    };
-  }
 
   bindItemPointerEvents(p);
   items.push(p);

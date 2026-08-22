@@ -395,7 +395,7 @@ const Q = new URLSearchParams(location.search);
 const PORTRAIT = Q.get("portrait") === "1";
 const RES = (() => {
   const m = /^(\d{3,4})x(\d{3,4})$/i.exec(Q.get("res") || "");
-  return m ? [+m[1], +m[2]] : [1920, 1080];
+  return m ? [+m[1], +m[2]] : [1280, 720];
 })();
 let MODE = Q.get("mode") || "mirror";
 if (MODE === "greenkey") { MODE = "key"; Q.set("key", "green"); }   // back-compat
@@ -1966,9 +1966,17 @@ function dropCursor(i) {
 
 function hitTest(cur) {
   for (let i = items.length - 1; i >= 0; i--) {
-    const c = items[i], r = c.el.getBoundingClientRect();
-    if (cur.x > r.left - 24 && cur.x < r.right + 24 &&
-        cur.y > r.top - 24 && cur.y < r.bottom + 24) return c;
+    const c = items[i];
+    if (!c.el || !c.el.isConnected) continue;
+    const r = c.el.getBoundingClientRect();
+    if (c.type === "orb" || (c.type === "widget" && c.def && c.def.w === "ring")) {
+      const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+      const rad = Math.max(r.width, r.height) / 2 + 48;
+      if (Math.hypot(cur.x - cx, cur.y - cy) <= rad) return c;
+    } else {
+      if (cur.x > r.left - 48 && cur.x < r.right + 48 &&
+          cur.y > r.top - 48 && cur.y < r.bottom + 48) return c;
+    }
   }
   return null;
 }
@@ -2068,7 +2076,7 @@ function endGrab(c, i, cur) {
       const bMs = performance.now() - (cur.grabT || 0);
       const bTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (bMs < 350 && bTrav < 24) browserTap(c, cur);
+      if (bMs < 650 && bTrav < 60) browserTap(c, cur);
     }
     // v3.3/v3.8: a quick tap on the GRIP BAR closes — notes and
     // folder panes alike
@@ -2077,7 +2085,7 @@ function endGrab(c, i, cur) {
       const gMs = performance.now() - (cur.grabT || 0);
       const gTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (gMs < 350 && gTrav < 24) killItem(c);
+      if (gMs < 650 && gTrav < 60) killItem(c);
       c.barGrab = false;
     }
     // GESTURE v3 (2026-08-14, Jared's spec — "make it a single pinch"):
@@ -2090,7 +2098,7 @@ function endGrab(c, i, cur) {
       const tMs = performance.now() - (cur.grabT || 0);
       const tTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (tMs < 300 && tTrav < 26) openPanel(c);
+      if (tMs < 650 && tTrav < 60) openPanel(c);
     }
     // GESTURE v3.1 (2026-08-14, the crush is DEAD — "that is happening
     // too naturally"): THE TAP IS SYMMETRIC — tap opens closed things,
@@ -2104,7 +2112,7 @@ function endGrab(c, i, cur) {
       const xMs = performance.now() - (cur.grabT || 0);
       const xTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (xMs < 300 && xTrav < 26) killItem(c);
+      if (xMs < 650 && xTrav < 60) killItem(c);
     }
     // PHASE 2 quick-tap releases: the RING toggles its orbital bloom;
     // an ORB grows into its browser pane (same discrimination gate as
@@ -2113,7 +2121,7 @@ function endGrab(c, i, cur) {
       const qMs = performance.now() - (cur.grabT || 0);
       const qTr = Math.hypot(cur.x - (c.tapX ?? cur.x),
                              cur.y - (c.tapY ?? cur.y));
-      if (qMs < 350 && qTr < 24) {
+      if (qMs < 650 && qTr < 60) {
         if (c.type === "widget" && c.def.w === "ring" &&
             c.mode === "move") {
           const sc = RINGS.get(c.id);
@@ -2399,88 +2407,18 @@ async function boot() {
         const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
         const ratio = span > 0 ? gap / span : 1;
         const px = (tip.x + thumb.x) / 2, py = (tip.y + thumb.y) / 2;
-        cur.x += (px - cur.x) * 0.45; cur.y += (py - cur.y) * 0.45;
+        cur.x += (px - cur.x) * 0.80; cur.y += (py - cur.y) * 0.80;
         cur.history.push({ x: cur.x, y: cur.y, t: now });
-        if (cur.history.length > 10) cur.history.shift();   // v3.6: peak-fling window
+        if (cur.history.length > 10) cur.history.shift();
 
         const wasPinched = cur.pinched;
-        // v3.6.1 (his catch: "it is treating a closed fist like a
-        // pinch") — a fist wraps the thumb onto the index tip, so the
-        // gap test alone can't tell touch from clench. The tell: a
-        // fist folds ALL fingers; a deliberate pinch leaves the other
-        // three readable. Fresh grabs demand a non-fist; a hand
-        // already HOLDING is exempt (the force-pull carry is a fist).
         const W0 = lms[0];
         const extArr = [[8, 5], [12, 9], [16, 13], [20, 17]].map(([t, m]) =>
           Math.hypot(lms[t].x - W0.x, lms[t].y - W0.y) >
           1.45 * Math.hypot(lms[m].x - W0.x, lms[m].y - W0.y));
         const extFingers = extArr.filter(Boolean).length;
         const holdingI = items.some(k => k.grabbedBy.includes(i));
-        // v3.7 — FITTED FROM HIS PINCH CORPUS (3 correct / 3 fists,
-        // 2026-08-14 afternoon): the correct pinch is the OK-SIGN —
-        // index curled onto the thumb while middle/ring/pinky ARCH OUT
-        // past the knuckle circle (f12 ≥1.44 / f16 ≥1.52 / f20 ≥1.59
-        // in every correct sample); every fist folds them in (max
-        // 1.24). Cut mid-canyon. The v3.6.2 circle and v3.6.3 wrapped-
-        // thumb theories are DEAD — the thumb gate was rejecting a
-        // CORRECT pinch (t 0.58 vs its 0.6 bar), and occlusion blinded
-        // the circle. The force-pull carry stays exempt via holdingI.
-        const fR = (t, m) => {
-          const td = Math.hypot(lms[t].x - W0.x, lms[t].y - W0.y);
-          const md = Math.hypot(lms[m].x - W0.x, lms[m].y - W0.y);
-          return md > 0 ? td / md : 9;
-        };
-        // v3.8.2 — THE CONTRAST LAW (6 correct / 6 impostor corpus;
-        // his low-arch correct pinch landed INSIDE an impostor's arch
-        // range, ending absolute-height gating): the OK-sign's true
-        // signature is index-vs-the-rest CONTRAST — the index curls IN
-        // to the thumb while middle/ring/pinky stay out. Arch delta
-        // (backMean − f8) ≥ 0.28 in every correct sample, ≤ 0.07 in
-        // every impostor incl. both near-pinches. Cut at 0.18, with a
-        // 1.30 back-arch floor as the fist wall. The EMA sustained
-        // read stays — lucky frames still buy nothing.
-        const f8v = fR(8, 5);
-        const backMean = (fR(12, 9) + fR(16, 13) + fR(20, 17)) / 3;
-        // v3.8.4 — TWO ORIENTATION REGIMES (his profiled-pinch sample:
-        // aspect 1.63 / thumb-dist 1.18 vs 2.1-5.5 / 0.4-0.7 in ALL
-        // frontal samples — a rotated palm compresses the arch ratios
-        // and the contrast law's numbers don't transfer). The regime
-        // self-announces via palm aspect; in PROFILE the thumb is the
-        // judge — a profile pinch rides it far off the knuckle row
-        // (1.16+), every fist ever sampled wraps it tight (≤0.72).
-        const palmW = Math.hypot(lms[5].x - lms[17].x,
-                                 lms[5].y - lms[17].y);
-        const aspect = palmW > 0 ? span / palmW : 9;
-        const tRel = span > 0 ? Math.hypot(
-          lms[4].x - lms[13].x, lms[4].y - lms[13].y) / span : 0;
-        // v3.8.5 (his mid-aspect catch: a contrast-perfect pinch at
-        // aspect 1.93 got shunted into the profile lane and judged by
-        // the wrong rule — the regimes OVERLAP in the middle): EITHER
-        // signature admits — contrast (frontal) OR far-thumb (profile).
-        // Every correct sample passes at least one; every impostor
-        // sampled passes neither.
-        const okBack = (backMean - f8v > 0.18 && backMean > 1.30) ||
-                       (aspect < 2.0 && tRel > 0.95);
-        // v3.8.3 (his tap report: drag fixed, tap still flaky) — the
-        // EMA charged too slow for a snap-tap (~6 frames): rate up to
-        // 0.30 = three clean consecutive frames (~100ms) to trust,
-        // which every real tap has; one or two lucky impostor frames
-        // still fall short of the 0.55 bar.
-        cur.okEma = 0.70 * (cur.okEma || 0) + 0.30 * (okBack ? 1 : 0);
-        // v3.8.6 (his call: "as soon as my index and thumb touch that
-        // pinch should activate") — instant path: TWO consecutive
-        // clean frames (this one + the last, 33ms — the camera's own
-        // floor) enter immediately; the charged-EMA path still serves
-        // hands whose approach was messy. Single lucky frames still
-        // buy nothing.
-        const okNow = okBack && cur.okPrev;
-        cur.okPrev = okBack;
-        // v3.9.8 (his mid-drag fling report: fast dragging smears the
-        // fingers, the gap falsely inflates past the release bar for a
-        // frame, and the phantom release fires at drag velocity = a
-        // toss he never threw): SPEED-AWARE RELEASE — a fast-moving
-        // hand must open FULLY (0.85) to release; a slow hand releases
-        // at 0.55 as before. Real throws open wide naturally.
+        
         let hspd = 0;
         const hh0 = cur.history;
         if (hh0.length >= 2) {
@@ -2488,67 +2426,20 @@ async function boot() {
           const pdt = (p1.t - p0.t) / 1000;
           if (pdt > 0) hspd = Math.hypot(p1.x - p0.x, p1.y - p0.y) / pdt;
         }
-        // v3.9.25 (still too sticky): the fast-release bar eased
-        // 0.85→0.70 — blur under-reads a throwing hand's open, and the
-        // 2-frame sustain already guards the phantom spikes
-        const relBar = hspd > 800 ? 0.70 : 0.55;
-        // v3.9.9: at speed, a release must be SEEN OPEN two frames
-        // running — a single blur spike can't fake a throw
+
+        const relBar = hspd > 800 ? 0.65 : 0.58;
         const openRead = ratio >= relBar;
-        const relOk = hspd > 800 ? (openRead && cur.openPrev) : openRead;
-        cur.openPrev = openRead;
-        // v3.9.12 (his second left-hand reading topped 0.28 — riding
-        // whatever ceiling gets set): the gap number is so angle-
-        // polluted that his TOUCHING left hand reads WIDER (0.24 med)
-        // than the not-touching near-pinch ever did (0.16) — r cannot
-        // order touch vs close across poses. The CONTRAST LAW is the
-        // real touch enforcement; the gap ceiling steps back to a
-        // margin role. v3.9.13: parked at 0.38 — its NATURAL LIMIT,
-        // one notch under the claw's 0.45 mouth floor (a forming claw
-        // must never read as a pinch). This ceiling cannot rise
-        // further; any future "pinch not taking" is signature or
-        // timing, never gap.
-        // v3.9.24 = the v3.9.22 state RESTORED (the coupling-law
-        // experiment lived twenty minutes — Jared: "put it back how it
-        // was"): regime-aware ceiling — frontal touch range 0.22,
-        // rotated-palm allowance 0.38.
-        // v3.9.27 = the two-band ceiling RESTORED (the gap ladder
-        // lived one round — Jared: "put it back how it was. I found
-        // the real problem").
-        // v3.9.30 — THE SANITY BOUND (Jared: "prevent it from
-        // hallucinating. If it can't SEE the two fingers pinched,
-        // don't do anything or drop it"): a hand-resting-on-the-face
-        // sample read palm aspect 7-8 — the knuckle row collapsed, a
-        // geometrically impossible hand. No REAL hand in the whole
-        // two-day corpus exceeded 5.5. Aspect > 6 = the tracker is
-        // guessing, and a guess can neither pinch nor keep a pinch.
-        // (v3.9.31: the visibility clause is GONE — the hand model
-        // carries the field but never populates it, so it read 0 on
-        // every frame and declared every real hand a hallucination)
-        const handGarbage = aspect > 6;
-        if (handGarbage) cur.probKill = true;   // garbage drops mute taps
-        // v3.9.32 (his final pinch sample: perfect signature, gap
-        // 0.22-0.30 vs the 0.22 frontal ceiling): frontal eased to
-        // 0.32 — the contrast law carries the touch duty.
-        cur.pinched = handGarbage ? false
-                    : wasPinched ? !relOk
-                                 : ratio < (aspect < 2.0 ? 0.38 : 0.32) &&
-                                   (okNow || cur.okEma > 0.55 || holdingI);
-        // v3.9.15 — PINCH PROBATION (his fold-through catch: closing a
-        // hand into a curl passes THROUGH a lawful OK-sign for two
-        // frames — index meets thumb while the back fingers are still
-        // mid-fold and arched — then hysteresis holds the bogus grab):
-        // a fresh pinch must KEEP its signature through its first
-        // 400ms; four straight signature-dead frames = silent drop.
-        // Skipped at speed (fast-drag blur would false-trip it) and
-        // for force-pull carries (holdingI grips are fist-legal).
-        if (cur.pinched && !wasPinched) { cur.badRun = 0; cur.probKill = false; }
-        else if (cur.pinched && wasPinched &&
-                 now - (cur.pinchT || 0) < 400 && hspd < 600 && !holdingI) {
-          cur.badRun = okBack ? 0 : (cur.badRun || 0) + 1;
-          if (cur.badRun >= 4) { cur.pinched = false; cur.probKill = true; }
-        } else cur.badRun = 0;
-        if (cur.pinched) cur.lastPinchT = now;   // v3.9: clap disqualifier
+        const palmW = Math.hypot(lms[5].x - lms[17].x, lms[5].y - lms[17].y);
+        const aspect = palmW > 0 ? span / palmW : 1;
+        const handGarbage = aspect > 7.5;
+        if (handGarbage) cur.probKill = true;
+
+        const pinched = !handGarbage && (wasPinched
+          ? !openRead
+          : (ratio <= 0.44 || holdingI));
+
+        cur.pinched = pinched;
+        if (cur.pinched) cur.lastPinchT = now;
         cur.el.classList.toggle("pinched", cur.pinched);
         cur.el.style.left = cur.x + "px"; cur.el.style.top = cur.y + "px";
 

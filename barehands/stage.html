@@ -1463,20 +1463,32 @@ function ringToggle(ring) {
 let CFG = { name: "Assistant", orbs: [] };
 let TREES = [], PROPSTREE = null;
 async function loadTree() {
-  // barehands.json drives everything: the ring's name and one orb per
-  // configured folder (kind "notes" = a markdown tree, "media" = props)
-  try { const r = await fetch("/config"); if (r.ok) CFG = await r.json(); }
-  catch (e) {}
-  TREES = [];
-  for (let i = 0; i < (CFG.orbs || []).length; i++) {
-    TREES[i] = null;
-    if (CFG.orbs[i].kind === "media") continue;
-    try { const r = await fetch("/tree?orb=" + i);
-          if (r.ok) TREES[i] = await r.json(); }
-    catch (e) {}
-  }
-  try { const r = await fetch("/props"); if (r.ok) PROPSTREE = await r.json(); }
-  catch (e) {}
+  try {
+    const r = await fetch("/config");
+    if (r.ok) CFG = await r.json();
+  } catch (e) {}
+
+  const orbFetches = (CFG.orbs || []).map(async (orb, i) => {
+    if (orb.kind === "media") return null;
+    try {
+      const r = await fetch("/tree?orb=" + i);
+      return r.ok ? await r.json() : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const propsFetch = fetch("/props")
+    .then(r => r.ok ? r.json() : null)
+    .catch(() => null);
+
+  const [trees, props] = await Promise.all([
+    Promise.all(orbFetches),
+    propsFetch
+  ]);
+
+  if (trees) TREES = trees;
+  if (props) PROPSTREE = props;
 }
 
 function treeCounts(d, isProps) {
@@ -1491,9 +1503,6 @@ function treeCounts(d, isProps) {
 }
 
 function spawnStage(cx = 0.30, cy = 0.45) {
-  // the default stage: EMPTY glass except THE RING (tap it and the
-  // configured orbs bloom). The clap passes 0.5 — the ring
-  // materializes center stage.
   items.forEach(killItem);
   const ring = makeRing();
   ring.x = innerWidth * cx; ring.y = innerHeight * cy;
@@ -1545,35 +1554,61 @@ function browserRefresh(b) {
   const maxS = Math.max(0, b.body.offsetHeight - box + 40);
   b.scrollY = Math.min(b.scrollY || 0, maxS);
   b.body.style.transform = `translateY(${-b.scrollY}px)`;
+
+  b.body.querySelectorAll(".brow").forEach(rowEl => {
+    rowEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = +rowEl.dataset.i;
+      const row = b.rows[idx];
+      if (!row) return;
+      flashRow(b.body, idx);
+      if (row.k === "dir") {
+        if (b.expanded.has(row.key)) b.expanded.delete(row.key);
+        else b.expanded.add(row.key);
+        browserRefresh(b);
+      } else if (row.k === "note") {
+        openPanel({ def: { file: row.f, title: row.t } });
+        killItem(b);
+      } else if (row.k === "prop") {
+        const src = "/media/" + row.f;
+        const it = isModelSrc(src) ? makeModel(src, row.t) : makeImage(src, row.t);
+        it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
+        it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+        items.push(it);
+        killItem(b);
+      }
+    });
+  });
 }
 
 function openBrowser(kind, ox, oy) {
-  // TOGGLE: tap the orb (or summon) again = the pane recedes. Phase 2:
-  // an orb tap passes its position so the pane GROWS FROM the orb's
-  // spot (clamped fully onscreen) — the circle language never breaks.
   const ex = items.find(i => i.type === "browser" && i.bkind === kind);
   if (ex) { killItem(ex); return; }
+
+  const label = String(kind === "props" ? "Props"
+    : ((CFG.orbs || [])[kind] || {}).title || "Notes").toUpperCase();
+  const el = document.createElement("div");
+  el.className = "panel browser";
+  el.innerHTML = `<div class="bar"><h3>${escT(label)}</h3></div>` +
+                 `<div class="body"><div class="scroll"></div></div>`;
+  BEHIND.appendChild(el);
+  const b = { el, id: UID++, type: "browser", bkind: kind,
+    def: { title: label, file: "" },
+    expanded: new Set(), rows: [], rowTuples: [], rowsV: 0,
+    x: ox != null ? Math.min(Math.max(ox, 300), innerWidth - 300)
+                  : innerWidth * 0.38,
+    y: oy != null ? Math.min(Math.max(oy, 380), innerHeight - 380)
+                  : innerHeight * 0.46,
+    scale: 1, vx: 0, vy: 0,
+    grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null,
+    scrollY: 0, body: el.querySelector(".scroll") };
+  b.anim = { k: "in", t: 0 }; b.el.style.opacity = "0.05";
+  bindItemPointerEvents(b);
+  items.push(b);
+  browserRefresh(b);
+
   loadTree().then(() => {
-    const label = String(kind === "props" ? "Props"
-      : ((CFG.orbs || [])[kind] || {}).title || "Notes").toUpperCase();
-    const el = document.createElement("div");
-    el.className = "panel browser";
-    el.innerHTML = `<div class="bar"><h3>${escT(label)}</h3></div>` +
-                   `<div class="body"><div class="scroll"></div></div>`;
-    BEHIND.appendChild(el);
-    const b = { el, id: UID++, type: "browser", bkind: kind,
-      def: { title: label, file: "" },
-      expanded: new Set(), rows: [], rowTuples: [], rowsV: 0,
-      x: ox != null ? Math.min(Math.max(ox, 300), innerWidth - 300)
-                    : innerWidth * 0.38,
-      y: oy != null ? Math.min(Math.max(oy, 380), innerHeight - 380)
-                    : innerHeight * 0.46,
-      scale: 1, vx: 0, vy: 0,
-      grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null,
-      scrollY: 0, body: el.querySelector(".scroll") };
-    b.anim = { k: "in", t: 0 }; b.el.style.opacity = "0.05";
-    items.push(b);
-    browserRefresh(b);
+    if (b.el && b.el.isConnected) browserRefresh(b);
   });
 }
 
@@ -2005,10 +2040,9 @@ function beginGrab(c, i, cur) {
     // punishing) PROMOTES to move — the note glows and latches to the
     // hand. Cards move immediately as always.
     if (c.type === "orb") {
-      // bloom orbs are pinned TAP targets (Phase 2): pinchable, a quick
-      // release opens their pane, but they never move — transient furniture
       c.mode = "pinned";
       c.tapX = cur.x; c.tapY = cur.y;
+      openBrowser(c.def.orb, c.x, c.y);
     } else if (c.type === "panel" || c.type === "browser") {
       // v3.3/v3.8 (Jared: "I need a dedicated place I can grab...
       // make the same rules apply to notes"): THE GRIP BAR on notes
@@ -2127,8 +2161,6 @@ function endGrab(c, i, cur) {
           const sc = RINGS.get(c.id);
           if (sc) sc.tapT = Date.now() / 1000;   // the ring's tap pulse
           ringToggle(c);
-        } else if (c.type === "orb") {
-          openBrowser(c.def.orb, c.x, c.y);
         }
       }
     }

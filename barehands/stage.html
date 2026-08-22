@@ -102,25 +102,123 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .card.orb { width:150px; height:150px; border-radius:50%; padding:0;
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
-  .card.imgcard { padding:12px; width:auto; max-width:60vw; overflow:hidden;
-      min-width:280px; min-height:200px; display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      background:linear-gradient(172deg, rgba(20,48,45,0.85), rgba(8,24,24,0.75));
-      border:1.5px solid rgba(111,229,214,0.65); border-radius:16px;
-      box-shadow:0 16px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,229,255,0.25),
-                 inset 0 1px 0 rgba(191,255,245,0.45); backdrop-filter:blur(16px); }
-  .card.imgcard img { display:block; max-width:54vw; max-height:64vh;
-                      min-width:200px; object-fit:contain;
-                      border-radius:10px; pointer-events:none; }
+  .card.imgcard, .card.videocard {
+      padding:0; width:auto; max-width:62vw; overflow:visible;
+      min-width:280px; min-height:180px; display:flex; flex-direction:column;
+      background:linear-gradient(168deg, rgba(20,48,45,0.88), rgba(8,24,24,0.82));
+      border:1.5px solid rgba(111,229,214,0.65); border-radius:14px;
+      box-shadow:0 16px 60px rgba(0,0,0,0.7), 0 0 35px rgba(0,229,255,0.22),
+                 inset 0 1px 0 rgba(191,255,245,0.45); backdrop-filter:blur(18px); }
+  /* Holographic Corner Brackets */
+  .card.imgcard::before, .card.imgcard::after,
+  .card.videocard::before, .card.videocard::after,
+  .panel::before, .panel::after {
+    content:""; position:absolute; width:14px; height:14px;
+    pointer-events:none; border-color:#8ff0e4; border-style:solid; z-index:15;
+    filter:drop-shadow(0 0 5px #8ff0e4); }
+  .card.imgcard::before, .card.videocard::before, .panel::before {
+    top:-3px; left:-3px; border-width:2.5px 0 0 2.5px; border-top-left-radius:6px; }
+  .card.imgcard::after, .card.videocard::after, .panel::after {
+    bottom:-3px; right:-3px; border-width:0 2.5px 2.5px 0; border-bottom-right-radius:6px; }
+  .corner-tr { position:absolute; top:-3px; right:-3px; width:14px; height:14px;
+    border-top:2.5px solid #8ff0e4; border-right:2.5px solid #8ff0e4;
+    border-top-right-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
+  .corner-bl { position:absolute; bottom:-3px; left:-3px; width:14px; height:14px;
+    border-bottom:2.5px solid #8ff0e4; border-left:2.5px solid #8ff0e4;
+    border-bottom-left-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
+
+  .media-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 14px; background:rgba(10,24,28,0.75);
+    border-bottom:1px solid rgba(143,240,228,0.25);
+    border-top-left-radius:13px; border-top-right-radius:13px;
+    cursor:grab; user-select:none; }
+  .media-header:active { cursor:grabbing; }
+  .media-header .title {
+    font:bold 12px "SF Mono",Menlo,monospace; color:#8ff0e4; letter-spacing:0.08em;
+    display:flex; align-items:center; gap:8px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; max-width:65%; }
+  .media-header .actions { display:flex; align-items:center; gap:8px; }
+  
+  .btn-hud {
+    background:rgba(143,240,228,0.12); border:1px solid rgba(143,240,228,0.4);
+    color:#8ff0e4; border-radius:12px; padding:3px 10px; font:11px "SF Mono",Menlo,monospace;
+    cursor:pointer; transition:all 0.2s ease; user-select:none; }
+  .btn-hud:hover {
+    background:rgba(143,240,228,0.28); border-color:#8ff0e4; color:#fff;
+    box-shadow:0 0 10px rgba(143,240,228,0.45); }
+  .btn-close {
+    background:rgba(255,80,80,0.15); border:1px solid rgba(255,100,100,0.4);
+    color:#ff8888; border-radius:50%; width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; cursor:pointer; transition:all 0.2s ease; user-select:none; }
+  .btn-close:hover {
+    background:rgba(255,80,80,0.38); color:#fff; box-shadow:0 0 10px rgba(255,80,80,0.5); }
+
+  .media-body {
+    position:relative; width:100%; display:flex; align-items:center;
+    justify-content:center; overflow:hidden;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px; }
+  .media-body img {
+    display:block; max-width:56vw; max-height:62vh; min-width:200px;
+    object-fit:contain; border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    transition:filter 0.3s ease; }
+  .media-body img.holo-active, .video-container video.holo-active {
+    filter:invert(0.90) hue-rotate(165deg) contrast(1.22) brightness(1.10) drop-shadow(0 0 18px rgba(111,229,214,0.5)) !important;
+    mix-blend-mode:screen !important; }
+
+  /* Custom Video Player Styling */
+  .video-container {
+    position:relative; width:100%; background:#000; overflow:hidden;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .video-container video {
+    display:block; max-width:56vw; max-height:60vh;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    transition:filter 0.3s ease; }
+  .video-play-pulse {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%, -50%) scale(0.8);
+    width:64px; height:64px; border-radius:50%;
+    background:rgba(8,20,24,0.8); border:2px solid #8ff0e4;
+    box-shadow:0 0 22px #8ff0e4; display:flex; align-items:center;
+    justify-content:center; color:#8ff0e4; font-size:28px;
+    pointer-events:none; opacity:0;
+    transition:all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index:10; }
+  .video-play-pulse.active {
+    opacity:1; transform:translate(-50%, -50%) scale(1.1); }
+  .video-hud-bar {
+    position:absolute; bottom:0; left:0; right:0;
+    background:linear-gradient(0deg, rgba(6,16,20,0.92) 0%, rgba(6,16,20,0.65) 75%, transparent 100%);
+    padding:8px 12px; display:flex; flex-direction:column; gap:6px;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    transition:opacity 0.3s ease; opacity:1; z-index:12; }
+  .video-container:hover .video-hud-bar { opacity:1 !important; }
+  .video-scrub-wrap {
+    position:relative; width:100%; height:6px;
+    background:rgba(143,240,228,0.22); border-radius:3px; cursor:pointer; }
+  .video-scrub-fill {
+    height:100%; background:#8ff0e4; border-radius:3px;
+    box-shadow:0 0 10px #8ff0e4; width:0%; pointer-events:none; }
+  .video-controls-row {
+    display:flex; align-items:center; justify-content:space-between;
+    color:#8ff0e4; font:12px "SF Mono",Menlo,monospace; }
+  .video-btn {
+    background:none; border:none; color:#8ff0e4; font-size:15px;
+    cursor:pointer; padding:2px 6px; display:flex; align-items:center;
+    justify-content:center; transition:transform 0.15s ease, color 0.15s ease; }
+  .video-btn:hover {
+    color:#fff; transform:scale(1.15); text-shadow:0 0 8px #8ff0e4; }
+
   /* MATERIALIZE-AS-LIGHT (Jared's call 8/9): images ARRIVE as hologram
      — teal monochrome light + one scan sweep — then resolve to their
      TRUE colors. Theater at the edges, truth in the content (evidence
      stays evidence; the folder law's spirit for pixels). */
-  .card.imgcard img, .card.imgcard video { transition:filter 0.5s ease-out; }
-  .card.imgcard.mat img, .card.imgcard.mat video {
+  .card.imgcard img, .card.videocard video { transition:filter 0.5s ease-out; }
+  .card.imgcard.mat img, .card.videocard.mat video {
       filter:brightness(1.55) saturate(0.2) sepia(1) hue-rotate(115deg)
              saturate(2.4) drop-shadow(0 0 22px rgba(111,229,214,0.85)); }
-  .card.imgcard.mat::after { content:""; position:absolute; left:0; right:0;
+  .card.imgcard.mat::after, .card.videocard.mat::after { content:""; position:absolute; left:0; right:0;
       height:16%; top:-20%; background:linear-gradient(180deg, transparent,
       rgba(191,255,245,0.75), transparent);
       animation:matscan 0.6s linear; pointer-events:none; }
@@ -459,7 +557,7 @@ function bindItemPointerEvents(item) {
   let startTime = 0;
 
   item.el.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".close") || e.target.closest(".brow")) return;
+    if (e.target.closest(".btn-close") || e.target.closest(".btn-hud") || e.target.closest(".video-btn") || e.target.closest(".video-scrub-wrap") || e.target.closest(".close") || e.target.closest(".brow")) return;
     isPointerDown = true;
     startX = e.clientX;
     startY = e.clientY;
@@ -488,13 +586,11 @@ function bindItemPointerEvents(item) {
     item.el.classList.remove("grabbed");
     const dt = performance.now() - startTime;
     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
-    if (dt < 400 && dist < 20) {
+    if (dt < 350 && dist < 15) {
       if (item.type === "widget" && item.def && item.def.w === "ring") {
         ringToggle(item);
       } else if (item.type === "orb") {
         openBrowser(item.def.orb, item.x, item.y);
-      } else if (item.type === "img" || item.type === "model") {
-        killItem(item);
       }
     }
   };
@@ -578,54 +674,267 @@ const foley = {
   yank:    () => { _tone(220, 0.12, 0.10, "sawtooth", 900); _noise(0.06, 1200, 3000, 0.08); },
 };
 
-function makeImage(src, title) {
-  const fx = /\/fx\//i.test(src);
-  const vid = /\.webm(\?|$)/i.test(src);
+function formatTime(sec) {
+  if (isNaN(sec) || sec < 0) return "00:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function makeVideo(src, title) {
   const el = document.createElement("div");
-  el.className = "card imgcard" + (fx || vid ? " fxcard" : "");
+  el.className = "card videocard";
   
-  if (vid) {
-    el.innerHTML = `<video src="${escT(src)}" autoplay loop muted playsinline style="display:block;max-width:54vw;max-height:64vh;border-radius:10px;"></video>`;
-  } else {
-    const spinner = document.createElement("div");
-    spinner.className = "img-spinner";
-    spinner.style.cssText = "padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;";
-    spinner.innerHTML = `<div style="font-size:32px;margin-bottom:10px;">🖼️</div>Loading ${escT(title || 'image')}...`;
-    
-    const img = document.createElement("img");
-    img.style.cssText = "display:none;max-width:54vw;max-height:64vh;object-fit:contain;border-radius:10px;";
-    img.alt = "";
-
-    const titleEl = document.createElement("div");
-    titleEl.className = "imgtitle";
-    titleEl.style.cssText = "margin-top:10px;font-size:12px;color:#8ff0e4;font-family:monospace;text-align:center;letter-spacing:0.06em;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;";
-    titleEl.textContent = title || "";
-
-    el.appendChild(spinner);
-    el.appendChild(img);
-    el.appendChild(titleEl);
-
-    img.onload = () => {
-      spinner.remove();
-      img.style.display = "block";
-    };
-    img.onerror = () => {
-      spinner.innerHTML = `<div style="color:#ff8888;padding:20px;">(Could not load "${escT(title)}")</div>`;
-    };
-    
-    img.src = src;
-  }
+  el.innerHTML = `
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="media-header">
+      <div class="title">
+        <span style="font-size:15px;">🎬</span>
+        <span>${escT(title || 'Video')}</span>
+      </div>
+      <div class="actions">
+        <button class="btn-hud holo-toggle" title="Toggle Holographic Shader">🔮 Hologram</button>
+        <button class="btn-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="video-container">
+      <video src="${escT(src)}" playsinline></video>
+      <div class="video-play-pulse">▶</div>
+      <div class="video-hud-bar">
+        <div class="video-scrub-wrap">
+          <div class="video-scrub-fill"></div>
+        </div>
+        <div class="video-controls-row">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="video-btn btn-play" title="Play/Pause">▶</button>
+            <button class="video-btn btn-mute" title="Mute/Unmute">🔊</button>
+            <span class="video-time" style="font-size:11px;opacity:0.9;">00:00 / 00:00</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="video-btn btn-loop" title="Loop" style="opacity:0.7;">🔁</button>
+            <button class="video-btn btn-fullscreen" title="Fullscreen">⛶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 
   BEHIND.appendChild(el);
   el.classList.add("mat");
   setTimeout(() => el.classList.remove("mat"), 650);
+
   const item = {
-    el, id: UID++, type: "img",
-    def: { title: title || "", file: "", src,
-           fx: fx || vid ? 1 : 0, vid: vid ? 1 : 0 },
+    el, id: UID++, type: "video",
+    def: { title: title || "", file: "", src },
     x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
     grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null
   };
+
+  const video = el.querySelector("video");
+  const playPulse = el.querySelector(".video-play-pulse");
+  const btnPlay = el.querySelector(".btn-play");
+  const btnMute = el.querySelector(".btn-mute");
+  const btnLoop = el.querySelector(".btn-loop");
+  const btnFs = el.querySelector(".btn-fullscreen");
+  const timeLbl = el.querySelector(".video-time");
+  const scrubWrap = el.querySelector(".video-scrub-wrap");
+  const scrubFill = el.querySelector(".video-scrub-fill");
+  const holoBtn = el.querySelector(".holo-toggle");
+  const closeBtn = el.querySelector(".btn-close");
+  const hudBar = el.querySelector(".video-hud-bar");
+
+  let isHolo = false;
+  holoBtn.onclick = (e) => {
+    e.stopPropagation();
+    isHolo = !isHolo;
+    video.classList.toggle("holo-active", isHolo);
+    holoBtn.textContent = isHolo ? "✨ Natural" : "🔮 Hologram";
+  };
+
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
+    killItem(item);
+  };
+
+  function showPulse(isPaused) {
+    playPulse.textContent = isPaused ? "⏸" : "▶";
+    playPulse.classList.add("active");
+    setTimeout(() => playPulse.classList.remove("active"), 400);
+  }
+
+  function togglePlay() {
+    if (video.paused) {
+      video.play().then(() => {
+        btnPlay.textContent = "⏸";
+        showPulse(false);
+      }).catch(() => {});
+    } else {
+      video.pause();
+      btnPlay.textContent = "▶";
+      showPulse(true);
+    }
+  }
+
+  const videoContainer = el.querySelector(".video-container");
+  videoContainer.onclick = (e) => {
+    if (e.target.closest(".video-hud-bar")) return;
+    togglePlay();
+  };
+
+  btnPlay.onclick = (e) => {
+    e.stopPropagation();
+    togglePlay();
+  };
+
+  btnMute.onclick = (e) => {
+    e.stopPropagation();
+    video.muted = !video.muted;
+    btnMute.textContent = video.muted ? "🔇" : "🔊";
+  };
+
+  let isLoop = true;
+  video.loop = true;
+  btnLoop.style.opacity = "1";
+  btnLoop.onclick = (e) => {
+    e.stopPropagation();
+    isLoop = !isLoop;
+    video.loop = isLoop;
+    btnLoop.style.opacity = isLoop ? "1" : "0.5";
+  };
+
+  btnFs.onclick = (e) => {
+    e.stopPropagation();
+    if (video.requestFullscreen) video.requestFullscreen();
+    else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+  };
+
+  video.ontimeupdate = () => {
+    if (!video.duration) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    scrubFill.style.width = pct + "%";
+    timeLbl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+  };
+
+  video.onloadedmetadata = () => {
+    timeLbl.textContent = `00:00 / ${formatTime(video.duration)}`;
+    video.muted = true;
+    video.play().then(() => {
+      btnPlay.textContent = "⏸";
+    }).catch(() => {});
+  };
+
+  let isScrubbing = false;
+  function seek(e) {
+    const rect = scrubWrap.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (video.duration) {
+      video.currentTime = pos * video.duration;
+      scrubFill.style.width = (pos * 100) + "%";
+    }
+  }
+
+  scrubWrap.onpointerdown = (e) => {
+    e.stopPropagation();
+    isScrubbing = true;
+    seek(e);
+  };
+  window.addEventListener("pointermove", (e) => {
+    if (isScrubbing) seek(e);
+  });
+  window.addEventListener("pointerup", () => {
+    isScrubbing = false;
+  });
+
+  let hudHideTimer = null;
+  videoContainer.onmousemove = () => {
+    hudBar.style.opacity = "1";
+    clearTimeout(hudHideTimer);
+    hudHideTimer = setTimeout(() => {
+      if (!video.paused) hudBar.style.opacity = "0";
+    }, 2500);
+  };
+
+  bindItemPointerEvents(item);
+  return item;
+}
+
+function makeImage(src, title) {
+  const fx = /\/fx\//i.test(src);
+  if (fx) {
+    const el = document.createElement("div");
+    el.className = "card fxcard";
+    el.innerHTML = `<img src="${escT(src)}" alt="" style="display:block;max-width:36vw;max-height:52vh;border-radius:0;pointer-events:none;">`;
+    BEHIND.appendChild(el);
+    const item = { el, id: UID++, type: "img", def: { title: title || "", file: "", src, fx: 1 },
+                   x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
+                   grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+    bindItemPointerEvents(item);
+    return item;
+  }
+
+  const el = document.createElement("div");
+  el.className = "card imgcard";
+  
+  el.innerHTML = `
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="media-header">
+      <div class="title">
+        <span style="font-size:15px;">🖼️</span>
+        <span>${escT(title || 'Photo')}</span>
+      </div>
+      <div class="actions">
+        <button class="btn-hud holo-toggle" title="Toggle Holographic Shader">🔮 Hologram</button>
+        <button class="btn-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="media-body">
+      <div class="img-spinner" style="padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;">
+        <div style="font-size:32px;margin-bottom:10px;">🖼️</div>
+        Loading ${escT(title || 'image')}...
+      </div>
+      <img src="${escT(src)}" alt="" style="display:none;">
+    </div>
+  `;
+
+  BEHIND.appendChild(el);
+  el.classList.add("mat");
+  setTimeout(() => el.classList.remove("mat"), 650);
+
+  const item = {
+    el, id: UID++, type: "img",
+    def: { title: title || "", file: "", src, fx: 0 },
+    x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
+    grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null
+  };
+
+  const img = el.querySelector("img");
+  const spinner = el.querySelector(".img-spinner");
+  const holoBtn = el.querySelector(".holo-toggle");
+  const closeBtn = el.querySelector(".btn-close");
+
+  let isHolo = false;
+  holoBtn.onclick = (e) => {
+    e.stopPropagation();
+    isHolo = !isHolo;
+    img.classList.toggle("holo-active", isHolo);
+    holoBtn.textContent = isHolo ? "✨ Natural" : "🔮 Hologram";
+  };
+
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
+    killItem(item);
+  };
+
+  img.onload = () => {
+    if (spinner) spinner.remove();
+    img.style.display = "block";
+  };
+  img.onerror = () => {
+    if (spinner) spinner.innerHTML = `<div style="color:#ff8888;padding:20px;">(Could not load "${escT(title)}")</div>`;
+  };
+
   bindItemPointerEvents(item);
   return item;
 }
@@ -1639,6 +1948,13 @@ function handleFileSelect(row, b) {
     it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
     items.push(it);
     killItem(b);
+  } else if (["mp4", "webm", "mov", "m4v", "mkv", "avi", "ogg", "mp3", "wav"].includes(ext)) {
+    const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
+    const it = makeVideo(src, t);
+    it.x = innerWidth * 0.5; it.y = innerHeight * 0.44;
+    it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+    items.push(it);
+    killItem(b);
   } else if (["glb", "gltf"].includes(ext)) {
     const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
     const it = makeModel(src, t);
@@ -1898,8 +2214,17 @@ async function openPanel(card) {
 
   const el = document.createElement("div");
   el.className = "panel";
-  el.innerHTML = `<div class="bar"><h3>${escT(title)}</h3>${barActions}</div>` +
-                 `<div class="body"><div class="scroll">${initialHtml}</div></div>`;
+  el.innerHTML = `
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="bar">
+      <h3>${escT(title)}</h3>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${barActions}
+        <button class="btn-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="body"><div class="scroll">${initialHtml}</div></div>`;
   BEHIND.appendChild(el);
   const p = { el, id: UID++, type: "panel", def: card.def, x: innerWidth * 0.5,
               y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0, grabbedBy: [],
@@ -1907,6 +2232,15 @@ async function openPanel(card) {
               body: el.querySelector(".scroll") };
   p.anim = { k: "in", t: 0 };
   p.el.style.opacity = "0.05";
+
+  const closeBtn = el.querySelector(".bar .btn-close");
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      killItem(p);
+    };
+  }
+
   bindItemPointerEvents(p);
   items.push(p);
 

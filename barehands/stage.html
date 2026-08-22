@@ -36,9 +36,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   body.ui-cyan .card h3, body.ui-cyan .panel .bar h3, body.ui-cyan .panel .close
     { color:#00e5ff; border-color:rgba(0,229,255,0.6); }
   body.ui-cyan .scroll .h { color:#00e5ff; }
-  #toast { position:absolute; top:14px; right:14px; z-index:998; display:none;
-           background:rgba(0,0,0,0.7); color:#8ff0e4; padding:8px 14px;
-           border-radius:8px; font:13px "SF Mono",Menlo,monospace; }
+  #toast { position:absolute; top:52px; right:16px; z-index:998; display:none;
+           background:rgba(0,0,0,0.85); border:1px solid rgba(143,240,228,0.3);
+           color:#8ff0e4; padding:6px 14px; border-radius:6px; font:12px "SF Mono",Menlo,monospace; }
   /* the squeeze-hold charge glow, visible on the TRACKER too (the render
      page has its own on-air rule): pinch + hold still = charge = open/close */
   .card, .panel { --ch:0; }
@@ -102,23 +102,125 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .card.orb { width:150px; height:150px; border-radius:50%; padding:0;
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
-  .card.orb h3 { margin:0; font-size:16px; }
-  .card.orb p { font-size:11.5px; color:#a8d8cf; margin:0; }
-  .card.imgcard { padding:6px; width:auto; overflow:hidden;
-      border-color:rgba(111,229,214,0.5);
-      box-shadow:0 8px 40px rgba(0,0,0,0.55), 0 0 30px rgba(111,229,214,0.20),
-                 inset 0 1px 0 rgba(191,255,245,0.35); }
-  .card.imgcard img { display:block; max-width:32vw; max-height:44vh;
-                      border-radius:10px; pointer-events:none; }
+  .card.imgcard, .card.videocard {
+      padding:0; width:auto; max-width:62vw; overflow:visible;
+      min-width:280px; min-height:180px; display:flex; flex-direction:column;
+      background:linear-gradient(168deg, rgba(20,48,45,0.88), rgba(8,24,24,0.82));
+      border:1.5px solid rgba(111,229,214,0.65); border-radius:14px;
+      box-shadow:0 16px 60px rgba(0,0,0,0.7), 0 0 35px rgba(0,229,255,0.22),
+                 inset 0 1px 0 rgba(191,255,245,0.45); backdrop-filter:blur(18px); }
+  /* Holographic Corner Brackets */
+  .card.imgcard::before, .card.imgcard::after,
+  .card.videocard::before, .card.videocard::after,
+  .panel::before, .panel::after {
+    content:""; position:absolute; width:14px; height:14px;
+    pointer-events:none; border-color:#8ff0e4; border-style:solid; z-index:15;
+    filter:drop-shadow(0 0 5px #8ff0e4); }
+  .card.imgcard::before, .card.videocard::before, .panel::before {
+    top:-3px; left:-3px; border-width:2.5px 0 0 2.5px; border-top-left-radius:6px; }
+  .card.imgcard::after, .card.videocard::after, .panel::after {
+    bottom:-3px; right:-3px; border-width:0 2.5px 2.5px 0; border-bottom-right-radius:6px; }
+  .corner-tr { position:absolute; top:-3px; right:-3px; width:14px; height:14px;
+    border-top:2.5px solid #8ff0e4; border-right:2.5px solid #8ff0e4;
+    border-top-right-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
+  .corner-bl { position:absolute; bottom:-3px; left:-3px; width:14px; height:14px;
+    border-bottom:2.5px solid #8ff0e4; border-left:2.5px solid #8ff0e4;
+    border-bottom-left-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
+
+  .media-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 14px; background:rgba(10,24,28,0.75);
+    border-bottom:1px solid rgba(143,240,228,0.25);
+    border-top-left-radius:13px; border-top-right-radius:13px;
+    cursor:grab; user-select:none; }
+  .media-header:active { cursor:grabbing; }
+  .media-header .title {
+    font:bold 12px "SF Mono",Menlo,monospace; color:#8ff0e4; letter-spacing:0.08em;
+    display:flex; align-items:center; gap:8px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; max-width:65%; }
+  .media-header .actions { display:flex; align-items:center; gap:8px; }
+  
+  .btn-hud {
+    background:rgba(143,240,228,0.12); border:1px solid rgba(143,240,228,0.4);
+    color:#8ff0e4; border-radius:12px; padding:3px 10px; font:11px "SF Mono",Menlo,monospace;
+    cursor:pointer; transition:all 0.2s ease; user-select:none; }
+  .btn-hud:hover {
+    background:rgba(143,240,228,0.28); border-color:#8ff0e4; color:#fff;
+    box-shadow:0 0 10px rgba(143,240,228,0.45); }
+  .btn-close {
+    background:rgba(255,80,80,0.15); border:1px solid rgba(255,100,100,0.4);
+    color:#ff8888; border-radius:50%; width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; cursor:pointer; transition:all 0.2s ease; user-select:none; }
+  .btn-close:hover {
+    background:rgba(255,80,80,0.38); color:#fff; box-shadow:0 0 10px rgba(255,80,80,0.5); }
+
+  .media-body {
+    position:relative; width:100%; display:flex; align-items:center;
+    justify-content:center; overflow:hidden;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px; }
+  .media-body img {
+    display:block; max-width:56vw; max-height:62vh; min-width:200px;
+    object-fit:contain; border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    transition:filter 0.3s ease; }
+  .media-body img.holo-active, .video-container video.holo-active {
+    filter:invert(0.90) hue-rotate(165deg) contrast(1.22) brightness(1.10) drop-shadow(0 0 18px rgba(111,229,214,0.5)) !important;
+    mix-blend-mode:screen !important; }
+
+  /* Custom Video Player Styling */
+  .video-container {
+    position:relative; width:100%; background:#000; overflow:hidden;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .video-container video {
+    display:block; max-width:56vw; max-height:60vh;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    transition:filter 0.3s ease; }
+  .video-play-pulse {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%, -50%) scale(0.8);
+    width:64px; height:64px; border-radius:50%;
+    background:rgba(8,20,24,0.8); border:2px solid #8ff0e4;
+    box-shadow:0 0 22px #8ff0e4; display:flex; align-items:center;
+    justify-content:center; color:#8ff0e4; font-size:28px;
+    pointer-events:none; opacity:0;
+    transition:all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index:10; }
+  .video-play-pulse.active {
+    opacity:1; transform:translate(-50%, -50%) scale(1.1); }
+  .video-scrubber-bar {
+    position:absolute; bottom:0; left:0; right:0;
+    padding:10px 14px 8px 14px;
+    background:linear-gradient(0deg, rgba(6,16,20,0.88) 0%, rgba(6,16,20,0.45) 60%, transparent 100%);
+    display:flex; align-items:center; gap:12px;
+    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
+    z-index:12; user-select:none; }
+  .video-vol-btn {
+    color:#8ff0e4; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:4px; transition:all 0.2s ease; user-select:none; }
+  .video-vol-btn:hover { background:rgba(143,240,228,0.2); text-shadow:0 0 8px #8ff0e4; }
+  .video-scrub-track {
+    position:relative; flex:1; height:4px;
+    background:rgba(143,240,228,0.25); border-radius:2px;
+    cursor:pointer; transition:height 0.15s ease; }
+  .video-scrub-track:hover { height:6px; }
+  .video-scrub-progress {
+    height:100%; background:#8ff0e4; border-radius:2px;
+    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.6);
+    width:0%; pointer-events:none; }
+  .video-time-tag {
+    font:11px "SF Mono",Menlo,monospace; color:#8ff0e4;
+    letter-spacing:0.05em; text-shadow:0 1px 4px rgba(0,0,0,0.9);
+    white-space:nowrap; opacity:0.9; }
+
   /* MATERIALIZE-AS-LIGHT (Jared's call 8/9): images ARRIVE as hologram
      — teal monochrome light + one scan sweep — then resolve to their
      TRUE colors. Theater at the edges, truth in the content (evidence
      stays evidence; the folder law's spirit for pixels). */
-  .card.imgcard img, .card.imgcard video { transition:filter 0.5s ease-out; }
-  .card.imgcard.mat img, .card.imgcard.mat video {
+  .card.imgcard img, .card.videocard video { transition:filter 0.5s ease-out; }
+  .card.imgcard.mat img, .card.videocard.mat video {
       filter:brightness(1.55) saturate(0.2) sepia(1) hue-rotate(115deg)
              saturate(2.4) drop-shadow(0 0 22px rgba(111,229,214,0.85)); }
-  .card.imgcard.mat::after { content:""; position:absolute; left:0; right:0;
+  .card.imgcard.mat::after, .card.videocard.mat::after { content:""; position:absolute; left:0; right:0;
       height:16%; top:-20%; background:linear-gradient(180deg, transparent,
       rgba(191,255,245,0.75), transparent);
       animation:matscan 0.6s linear; pointer-events:none; }
@@ -273,9 +375,48 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     padding: 6px 12px; border-radius: 6px; cursor: pointer; width: 100%; text-align: center;
     margin-top: 6px; font-weight: bold; font: 11px "SF Mono", Menlo, monospace;
   }
-  #voice-modal .btn-toggle:hover { background: rgba(61, 220, 132, 0.3); }
+  #desktop-exit-btn {
+    position: absolute; top: 14px; left: 16px; z-index: 998;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(10, 20, 24, 0.85); backdrop-filter: blur(10px);
+    border: 1px solid rgba(143, 240, 228, 0.45); border-radius: 20px;
+    padding: 6px 14px; color: #8ff0e4; font: 12px "SF Mono", Menlo, monospace;
+    cursor: pointer; user-select: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  #desktop-exit-btn:hover {
+    border-color: rgba(143, 240, 228, 0.9); background: rgba(16, 32, 38, 0.95);
+    color: #fff; transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 240, 255, 0.3);
+  }
+  #desktop-exit-btn, #voice-hud, #hint {
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
+    opacity: 1; visibility: visible;
+  }
+  body.mouse-idle #desktop-exit-btn,
+  body.mouse-idle #voice-hud,
+  body.mouse-idle #hint {
+    opacity: 0 !important; pointer-events: none !important; visibility: hidden !important;
+  }
+  body.mouse-idle {
+    cursor: none;
+  }
+  .pdf-page-canvas {
+    display:block; width:100%; max-width:800px; margin:0 auto 18px auto;
+    border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.6), 0 0 20px rgba(0,229,255,0.18);
+    transition:filter 0.3s ease, background 0.3s ease;
+  }
+  .pdf-page-canvas.hologram-mode {
+    filter: invert(0.90) hue-rotate(165deg) contrast(1.18) brightness(1.08);
+    mix-blend-mode: screen; background: transparent;
+  }
+  .pdf-page-canvas.paper-mode {
+    filter: none; mix-blend-mode: normal; background: #ffffff;
+  }
+  body.overlay #desktop-exit-btn { display: none !important; }
   body.overlay #voice-hud, body.overlay #voice-modal { display: none !important; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -298,13 +439,9 @@ if (location.protocol === "file:") {
     '<div style="font-size:22px;letter-spacing:.18em;color:#6fe3c9;margin-bottom:18px">BAREHANDS NEEDS ITS SERVER</div>' +
     '<p>You opened this file directly, so there is no server behind it. The camera and the gestures will still work, ' +
     'but nothing will ever <b>open</b>: tapping a card asks the server for the file, and there is nothing to ask.</p>' +
-    '<p style="margin-top:16px">Start it from the barehands folder:</p>' +
+    '<p style="margin-top:16px">Start it from the unified server:</p>' +
     '<pre style="background:#052227;border:1px solid #14484f;padding:12px 14px;border-radius:8px;color:#9ff0dd">' +
-    'python3 server.py      <span style="color:#6b9c96"># Windows: python server.py</span></pre>' +
-    '<p style="margin-top:14px">Then open this in Chrome:</p>' +
-    '<pre style="background:#052227;border:1px solid #14484f;padding:12px 14px;border-radius:8px;color:#9ff0dd">' +
-    'http://127.0.0.1:8794/stage.html</pre>' +
-    '<p style="margin-top:18px;color:#7fb3ab">If you changed "port" in barehands.json, use that port instead.</p>' +
+    'start.bat / start.sh</pre>' +
     '</div></body>';
   throw new Error("barehands: opened over file://, server required");
 }
@@ -322,6 +459,10 @@ setTimeout(function () {
 <div id="hint">tap the RING = orbs · tap an orb = its tree · TAP a card = open · pinch-drag = move · hold still ~1s = 3D rotate · two hands = scale · TAP an open item = close · CLAP = clear · V/M toggle Hands-Free · R respawn / C camera / D debug</div>
 <div id="debug"></div>
 <div id="toast"></div>
+
+<div id="desktop-exit-btn" onclick="exitToDesktop()" title="Switch back to Desktop Studio (Alt+H)">
+  <span>🖥️ DESKTOP STUDIO</span>
+</div>
 
 <div id="voice-hud" title="Click to change Voice/Mic Mode (Shortcut: V)">
   <div class="dot" id="vhud-dot"></div>
@@ -381,7 +522,7 @@ const Q = new URLSearchParams(location.search);
 const PORTRAIT = Q.get("portrait") === "1";
 const RES = (() => {
   const m = /^(\d{3,4})x(\d{3,4})$/i.exec(Q.get("res") || "");
-  return m ? [+m[1], +m[2]] : [1920, 1080];
+  return m ? [+m[1], +m[2]] : [1280, 720];
 })();
 let MODE = Q.get("mode") || "mirror";
 if (MODE === "greenkey") { MODE = "key"; Q.set("key", "green"); }   // back-compat
@@ -411,13 +552,75 @@ let landmarker = null, lastVideoTs = -1, frames = 0, fps = 0, lastFpsTs = perfor
 
 let UID = 1;
 
+function bindItemPointerEvents(item) {
+  let isPointerDown = false;
+  let startX = 0, startY = 0;
+  let startItemX = 0, startItemY = 0;
+  let startTime = 0;
+
+  item.el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".btn-close") || e.target.closest(".btn-hud") || e.target.closest(".video-btn") || e.target.closest(".video-scrub-wrap") || e.target.closest(".video-vol-btn") || e.target.closest(".video-scrubber-bar") || e.target.closest(".close") || e.target.closest(".brow")) return;
+    isPointerDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startItemX = item.x;
+    startItemY = item.y;
+    startTime = performance.now();
+    try { item.el.setPointerCapture(e.pointerId); } catch (err) {}
+    item.el.classList.add("grabbed");
+    e.stopPropagation();
+  });
+
+  item.el.addEventListener("pointermove", (e) => {
+    if (!isPointerDown) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (item.type !== "orb") {
+      item.x = startItemX + dx;
+      item.y = startItemY + dy;
+      item.vx = 0; item.vy = 0;
+    }
+  });
+
+  const onPointerUp = (e) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    item.el.classList.remove("grabbed");
+    const dt = performance.now() - startTime;
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+    if (dt < 350 && dist < 15) {
+      if (item.type === "widget" && item.def && item.def.w === "ring") {
+        ringToggle(item);
+      } else if (item.type === "orb") {
+        openBrowser(item.def.orb, item.x, item.y);
+      }
+    }
+  };
+
+  item.el.addEventListener("pointerup", onPointerUp);
+  item.el.addEventListener("pointercancel", onPointerUp);
+
+  if (item.type === "panel" || item.type === "browser") {
+    item.el.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      if (!item.body) return;
+      const box = item.body.parentElement ? item.body.parentElement.clientHeight : 600;
+      const maxS = Math.max(0, item.body.offsetHeight - box + 60);
+      item.scrollY = Math.min(maxS, Math.max(0, (item.scrollY || 0) + e.deltaY * 0.8));
+      item.body.style.transform = `translateY(${-item.scrollY}px)`;
+    }, { passive: false });
+  }
+}
+
 function makeCard(def) {
   const el = document.createElement("div");
   el.className = "card";
   el.innerHTML = `<h3>${escT(def.title)}</h3><p>${escT(def.body || "")}</p>`;
   BEHIND.appendChild(el);
-  return { el, id: UID++, type: "card", def, x: 0, y: 0, scale: 1, vx: 0, vy: 0,
-           grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+  const it = { el, id: UID++, type: "card", def, x: 0, y: 0, scale: 1, vx: 0, vy: 0,
+               grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+  bindItemPointerEvents(it);
+  return it;
 }
 
 // ---- FOLEY (2026-08-07): synthesized WebAudio — the objects make SOUND,
@@ -473,25 +676,207 @@ const foley = {
   yank:    () => { _tone(220, 0.12, 0.10, "sawtooth", 900); _noise(0.06, 1200, 3000, 0.08); },
 };
 
-function makeImage(src, title) {
-  // THE FX LAYER: media/fx/ = naked render (no card chrome); .webm =
-  // silent looping alpha video. Both stay type "img" so every gesture —
-  // grab, stretch, fling, give-back, flash-close — works unchanged.
-  const fx = /\/fx\//i.test(src);
-  const vid = /\.webm(\?|$)/i.test(src);
+function formatTime(sec) {
+  if (isNaN(sec) || sec < 0) return "00:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function makeVideo(src, title) {
   const el = document.createElement("div");
-  el.className = "card imgcard" + (fx || vid ? " fxcard" : "");
-  el.innerHTML = vid
-    ? `<video src="${escT(src)}" autoplay loop muted playsinline></video>`
-    : `<img src="${escT(src)}" alt="">`;
+  el.className = "card videocard";
+  
+  el.innerHTML = `
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="media-header">
+      <div class="title">
+        <span style="font-size:15px;">🎬</span>
+        <span>${escT(title || 'Video')}</span>
+      </div>
+      <div class="actions">
+        <button class="btn-hud video-audio-btn" title="Toggle Sound (Hand Tap / Click)">🔇 MUTED</button>
+        <button class="btn-close video-close-btn" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="video-container">
+      <video src="${escT(src)}" loop autoplay playsinline muted></video>
+      <div class="video-play-pulse">▶</div>
+      <div class="video-scrubber-bar">
+        <div class="video-vol-btn" title="Toggle Sound (Mute/Unmute)">🔇</div>
+        <div class="video-scrub-track">
+          <div class="video-scrub-progress"></div>
+        </div>
+        <div class="video-time-tag">00:00 / 00:00</div>
+      </div>
+    </div>
+  `;
+
   BEHIND.appendChild(el);
-  el.classList.add("mat");                     // arrives as light...
-  setTimeout(() => el.classList.remove("mat"), 650);   // ...resolves true
-  return { el, id: UID++, type: "img",
-           def: { title: title || "", file: "", src,
-                  fx: fx || vid ? 1 : 0, vid: vid ? 1 : 0 },
-           x: innerWidth * 0.5, y: innerHeight * 0.42, scale: 1, vx: 0, vy: 0,
-           grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+  el.classList.add("mat");
+  setTimeout(() => el.classList.remove("mat"), 650);
+
+  const item = {
+    el, id: UID++, type: "video",
+    def: { title: title || "", file: "", src },
+    x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
+    grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null
+  };
+
+  const video = el.querySelector("video");
+  const track = el.querySelector(".video-scrub-track");
+  const progress = el.querySelector(".video-scrub-progress");
+  const timeTag = el.querySelector(".video-time-tag");
+  const audioBtn = el.querySelector(".video-audio-btn");
+  const closeBtn = el.querySelector(".video-close-btn");
+  const volBtn = el.querySelector(".video-vol-btn");
+  const playPulse = el.querySelector(".video-play-pulse");
+
+  function setAudio(unmute, showPulse = true) {
+    _ac();
+    video.muted = !unmute;
+    video.volume = 1.0;
+    if (audioBtn) {
+      audioBtn.textContent = video.muted ? "🔇 MUTED" : "🔊 SOUND";
+      audioBtn.style.borderColor = video.muted ? "rgba(143,240,228,0.4)" : "#8ff0e4";
+      audioBtn.style.background = video.muted ? "rgba(143,240,228,0.12)" : "rgba(143,240,228,0.32)";
+      audioBtn.style.color = video.muted ? "#8ff0e4" : "#fff";
+      audioBtn.style.boxShadow = video.muted ? "none" : "0 0 12px rgba(143,240,228,0.6)";
+    }
+    if (volBtn) {
+      volBtn.textContent = video.muted ? "🔇" : "🔊";
+    }
+    if (showPulse && playPulse) {
+      playPulse.textContent = video.muted ? "🔇" : "🔊";
+      playPulse.classList.add("active");
+      setTimeout(() => playPulse.classList.remove("active"), 450);
+    }
+  }
+
+  function toggleAudio() {
+    setAudio(video.muted, true);
+  }
+
+  item.setAudio = setAudio;
+  item.toggleAudio = toggleAudio;
+
+  if (audioBtn) {
+    audioBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleAudio();
+    };
+  }
+  if (volBtn) {
+    volBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleAudio();
+    };
+  }
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      killItem(item);
+    };
+  }
+
+  video.ontimeupdate = () => {
+    if (!video.duration) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    progress.style.width = pct + "%";
+    timeTag.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+  };
+
+  video.onloadedmetadata = () => {
+    timeTag.textContent = `00:00 / ${formatTime(video.duration)}`;
+  };
+
+  function seek(e) {
+    const rect = track.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (video.duration) {
+      video.currentTime = pos * video.duration;
+      progress.style.width = (pos * 100) + "%";
+    }
+  }
+
+  track.onpointerdown = (e) => {
+    e.stopPropagation();
+    seek(e);
+    const onMove = (mv) => seek(mv);
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  video.play().catch(() => {});
+
+  bindItemPointerEvents(item);
+  return item;
+}
+
+function makeImage(src, title) {
+  const fx = /\/fx\//i.test(src);
+  if (fx) {
+    const el = document.createElement("div");
+    el.className = "card fxcard";
+    el.innerHTML = `<img src="${escT(src)}" alt="" style="display:block;max-width:36vw;max-height:52vh;border-radius:0;pointer-events:none;">`;
+    BEHIND.appendChild(el);
+    const item = { el, id: UID++, type: "img", def: { title: title || "", file: "", src, fx: 1 },
+                   x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
+                   grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+    bindItemPointerEvents(item);
+    return item;
+  }
+
+  const el = document.createElement("div");
+  el.className = "card imgcard";
+  
+  el.innerHTML = `
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="media-header">
+      <div class="title">
+        <span style="font-size:15px;">🖼️</span>
+        <span>${escT(title || 'Photo')}</span>
+      </div>
+    </div>
+    <div class="media-body">
+      <div class="img-spinner" style="padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;">
+        <div style="font-size:32px;margin-bottom:10px;">🖼️</div>
+        Loading ${escT(title || 'image')}...
+      </div>
+      <img src="${escT(src)}" alt="" style="display:none;">
+    </div>
+  `;
+
+  BEHIND.appendChild(el);
+  el.classList.add("mat");
+  setTimeout(() => el.classList.remove("mat"), 650);
+
+  const item = {
+    el, id: UID++, type: "img",
+    def: { title: title || "", file: "", src, fx: 0 },
+    x: innerWidth * 0.5, y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0,
+    grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null
+  };
+
+  const img = el.querySelector("img");
+  const spinner = el.querySelector(".img-spinner");
+
+  img.onload = () => {
+    if (spinner) spinner.remove();
+    img.style.display = "block";
+  };
+  img.onerror = () => {
+    if (spinner) spinner.innerHTML = `<div style="color:#ff8888;padding:20px;">(Could not load "${escT(title)}")</div>`;
+  };
+
+  bindItemPointerEvents(item);
+  return item;
 }
 
 function summonWidget(w) {
@@ -521,13 +906,18 @@ const RING = {
           thinking: [170, 245, 250], speaking: [140, 235, 240] },
   MOODT: { red: [255, 82, 82], amber: [255, 179, 71], green: null },
 };
+let ringPolling = false;
 setInterval(async () => {
-  if (!RING.live) return;               // poll only while a ring is up
+  if (!RING.live || ringPolling) return;
+  ringPolling = true;
   try {
     const r = await fetch("/orb", { cache: "no-store" });
     if (r.ok) RING.data = await r.json();
   } catch (e) {}
-}, 120);
+  finally {
+    ringPolling = false;
+  }
+}, 300);
 
 function ringAmp() {
   // the preserved aura pulse math: RMS+peak blend, auto-gain against a
@@ -565,6 +955,7 @@ function makeRing() {
     vx: 0, vy: 0, grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
   it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
   RINGS.set(it.id, ringCanvas(el));
+  bindItemPointerEvents(it);
   items.push(it);
   return it;
 }
@@ -1355,9 +1746,11 @@ function makeOrb(def) {
   el.className = "card orb";
   el.innerHTML = `<h3>${escT(def.title)}</h3><p>${escT(def.body || "")}</p>`;
   BEHIND.appendChild(el);
-  return { el, id: UID++, type: "orb", def, x: 0, y: 0, scale: 1,
-           vx: 0, vy: 0, grabbedBy: [], ox: 0, oy: 0, flying: false,
-           stretch: null };
+  const it = { el, id: UID++, type: "orb", def, x: 0, y: 0, scale: 1,
+               vx: 0, vy: 0, grabbedBy: [], ox: 0, oy: 0, flying: false,
+               stretch: null };
+  bindItemPointerEvents(it);
+  return it;
 }
 
 function ringToggle(ring) {
@@ -1393,20 +1786,32 @@ function ringToggle(ring) {
 let CFG = { name: "Assistant", orbs: [] };
 let TREES = [], PROPSTREE = null;
 async function loadTree() {
-  // barehands.json drives everything: the ring's name and one orb per
-  // configured folder (kind "notes" = a markdown tree, "media" = props)
-  try { const r = await fetch("/config"); if (r.ok) CFG = await r.json(); }
-  catch (e) {}
-  TREES = [];
-  for (let i = 0; i < (CFG.orbs || []).length; i++) {
-    TREES[i] = null;
-    if (CFG.orbs[i].kind === "media") continue;
-    try { const r = await fetch("/tree?orb=" + i);
-          if (r.ok) TREES[i] = await r.json(); }
-    catch (e) {}
-  }
-  try { const r = await fetch("/props"); if (r.ok) PROPSTREE = await r.json(); }
-  catch (e) {}
+  try {
+    const r = await fetch("/config");
+    if (r.ok) CFG = await r.json();
+  } catch (e) {}
+
+  const orbFetches = (CFG.orbs || []).map(async (orb, i) => {
+    if (orb.kind === "media") return null;
+    try {
+      const r = await fetch("/tree?orb=" + i);
+      return r.ok ? await r.json() : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const propsFetch = fetch("/props")
+    .then(r => r.ok ? r.json() : null)
+    .catch(() => null);
+
+  const [trees, props] = await Promise.all([
+    Promise.all(orbFetches),
+    propsFetch
+  ]);
+
+  if (trees) TREES = trees;
+  if (props) PROPSTREE = props;
 }
 
 function treeCounts(d, isProps) {
@@ -1421,9 +1826,6 @@ function treeCounts(d, isProps) {
 }
 
 function spawnStage(cx = 0.30, cy = 0.45) {
-  // the default stage: EMPTY glass except THE RING (tap it and the
-  // configured orbs bloom). The clap passes 0.5 — the ring
-  // materializes center stage.
   items.forEach(killItem);
   const ring = makeRing();
   ring.x = innerWidth * cx; ring.y = innerHeight * cy;
@@ -1459,52 +1861,135 @@ function browserRows(b) {
 }
 
 function browserRowsHTML(tuples) {
-  const ICO = { dir0: "▸", dir1: "▾", note: "▤", prop: "▦", widget: "▣" };
-  return tuples.map(([d, t, k, o], i) =>
-    `<div class="brow ${k}" data-i="${i}" style="padding-left:${18 + d * 26}px">` +
-    `<span class="bico">${k === "dir" ? ICO["dir" + o] : ICO[k]}</span>` +
-    `<span class="btxt">${escT(t)}</span></div>`).join("");
+  const ICO = { dir0: "▸", dir1: "▾", note: "📄", img: "🖼️", doc: "📕", media: "🎵", prop: "▦", widget: "▣" };
+  return tuples.map(([d, t, k, o], i) => {
+    let ico = ICO.note;
+    if (k === "dir") ico = ICO["dir" + o];
+    else if (k === "prop") ico = ICO.prop;
+    else if (/\.(png|jpe?g|webp|gif|svg)$/i.test(t)) ico = ICO.img;
+    else if (/\.(pdf|docx?|pptx?|xlsx?|csv)$/i.test(t)) ico = ICO.doc;
+    else if (/\.(mp3|mp4|wav|m4a|webm|mov)$/i.test(t)) ico = ICO.media;
+
+    return `<div class="brow ${k}" data-i="${i}" style="padding-left:${18 + d * 26}px">` +
+      `<span class="bico">${ico}</span>` +
+      `<span class="btxt">${escT(t)}</span></div>`;
+  }).join("");
+}
+
+function handleFileSelect(row, b) {
+  const f = row.f || "";
+  const t = row.t || "";
+  const ext = f.split(".").pop().toLowerCase();
+
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) {
+    const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
+    const it = makeImage(src, t);
+    it.x = innerWidth * 0.5; it.y = innerHeight * 0.44;
+    it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+    items.push(it);
+    killItem(b);
+  } else if (["mp4", "webm", "mov", "m4v", "mkv", "avi", "ogg", "mp3", "wav"].includes(ext)) {
+    const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
+    const it = makeVideo(src, t);
+    it.x = innerWidth * 0.5; it.y = innerHeight * 0.44;
+    it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+    items.push(it);
+    killItem(b);
+  } else if (["glb", "gltf"].includes(ext)) {
+    const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
+    const it = makeModel(src, t);
+    it.x = innerWidth * 0.5; it.y = innerHeight * 0.44;
+    it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+    items.push(it);
+    killItem(b);
+  } else {
+    openPanel({ def: { file: f, title: t } });
+    killItem(b);
+  }
 }
 
 function browserRefresh(b) {
   b.rows = browserRows(b);
   b.rowTuples = b.rows.map(r => [r.d, r.t, r.k, r.o || 0]);
   b.rowsV = (b.rowsV || 0) + 1;
-  b.body.innerHTML = browserRowsHTML(b.rowTuples);
+  
+  if (b.rows.length === 0) {
+    const isLoaded = (b.bkind === "props" ? PROPSTREE : (TREES && TREES[b.bkind]));
+    if (!isLoaded) {
+      b.body.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.8;font-family:monospace;letter-spacing:1px;">` +
+                         `<div style="font-size:28px;margin-bottom:12px;">📁</div>Loading folder...</div>`;
+    } else {
+      b.body.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.6;font-family:monospace;">(No files found)</div>`;
+    }
+  } else {
+    b.body.innerHTML = browserRowsHTML(b.rowTuples);
+  }
+
   const box = b.body.parentElement.clientHeight;
   const maxS = Math.max(0, b.body.offsetHeight - box + 40);
   b.scrollY = Math.min(b.scrollY || 0, maxS);
   b.body.style.transform = `translateY(${-b.scrollY}px)`;
+
+  b.body.querySelectorAll(".brow").forEach(rowEl => {
+    rowEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = +rowEl.dataset.i;
+      const row = b.rows[idx];
+      if (!row) return;
+      flashRow(b.body, idx);
+      if (row.k === "dir") {
+        if (b.expanded.has(row.key)) b.expanded.delete(row.key);
+        else b.expanded.add(row.key);
+        browserRefresh(b);
+      } else {
+        handleFileSelect(row, b);
+      }
+    });
+  });
 }
 
 function openBrowser(kind, ox, oy) {
-  // TOGGLE: tap the orb (or summon) again = the pane recedes. Phase 2:
-  // an orb tap passes its position so the pane GROWS FROM the orb's
-  // spot (clamped fully onscreen) — the circle language never breaks.
   const ex = items.find(i => i.type === "browser" && i.bkind === kind);
   if (ex) { killItem(ex); return; }
-  loadTree().then(() => {
-    const label = String(kind === "props" ? "Props"
-      : ((CFG.orbs || [])[kind] || {}).title || "Notes").toUpperCase();
-    const el = document.createElement("div");
-    el.className = "panel browser";
-    el.innerHTML = `<div class="bar"><h3>${escT(label)}</h3></div>` +
-                   `<div class="body"><div class="scroll"></div></div>`;
-    BEHIND.appendChild(el);
-    const b = { el, id: UID++, type: "browser", bkind: kind,
-      def: { title: label, file: "" },
-      expanded: new Set(), rows: [], rowTuples: [], rowsV: 0,
-      x: ox != null ? Math.min(Math.max(ox, 300), innerWidth - 300)
-                    : innerWidth * 0.38,
-      y: oy != null ? Math.min(Math.max(oy, 380), innerHeight - 380)
-                    : innerHeight * 0.46,
-      scale: 1, vx: 0, vy: 0,
-      grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null,
-      scrollY: 0, body: el.querySelector(".scroll") };
-    b.anim = { k: "in", t: 0 }; b.el.style.opacity = "0.05";
-    items.push(b);
-    browserRefresh(b);
-  });
+
+  const label = String(kind === "props" ? "Props"
+    : ((CFG.orbs || [])[kind] || {}).title || "Notes").toUpperCase();
+  const el = document.createElement("div");
+  el.className = "panel browser";
+  el.innerHTML = `<div class="bar"><h3>${escT(label)}</h3></div>` +
+                 `<div class="body"><div class="scroll"></div></div>`;
+  BEHIND.appendChild(el);
+  const b = { el, id: UID++, type: "browser", bkind: kind,
+    def: { title: label, file: "" },
+    expanded: new Set(), rows: [], rowTuples: [], rowsV: 0,
+    x: ox != null ? Math.min(Math.max(ox, 300), innerWidth - 300)
+                  : innerWidth * 0.38,
+    y: oy != null ? Math.min(Math.max(oy, 380), innerHeight - 380)
+                  : innerHeight * 0.46,
+    scale: 1, vx: 0, vy: 0,
+    grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null,
+    scrollY: 0, body: el.querySelector(".scroll") };
+  b.anim = { k: "in", t: 0 }; b.el.style.opacity = "0.05";
+  bindItemPointerEvents(b);
+  items.push(b);
+  browserRefresh(b);
+
+  if (kind !== "props") {
+    fetch("/tree?orb=" + kind).then(r => r.ok ? r.json() : null).then(tree => {
+      if (tree) {
+        if (!TREES) TREES = [];
+        TREES[kind] = tree;
+        if (b.el && b.el.isConnected) browserRefresh(b);
+      }
+    }).catch(() => {});
+  } else {
+    fetch("/props").then(r => r.ok ? r.json() : null).then(props => {
+      if (props) {
+        PROPSTREE = props;
+        if (b.el && b.el.isConnected) browserRefresh(b);
+      }
+    }).catch(() => {});
+  }
 }
 
 function flashRow(container, i) {
@@ -1523,9 +2008,6 @@ function browserTap(b, cur) {
         cur.x >= r.left && cur.x <= r.right) {
       const row = b.rows[+rowEl.dataset.i];
       if (!row) return;
-      // the tap flash: mark it for both pages (dir taps re-render the
-      // rows, so the local flash applies AFTER the branch runs; the
-      // tapped dir keeps its index — children insert below it)
       b.flashI = +rowEl.dataset.i;
       b.flashV = (b.flashV || 0) + 1;
       setTimeout(() => flashRow(b.body, b.flashI), 0);
@@ -1533,18 +2015,8 @@ function browserTap(b, cur) {
         if (b.expanded.has(row.key)) b.expanded.delete(row.key);
         else b.expanded.add(row.key);
         browserRefresh(b);
-      } else if (row.k === "note") {
-        openPanel({ def: { file: row.f, title: row.t } });
-        killItem(b);   // v3.3 (his broadened rule): selecting ANYTHING
-                       // closes the whole pane — only dir taps keep it
-      } else if (row.k === "prop") {
-        const src = "/media/" + row.f;
-        const it = isModelSrc(src) ? makeModel(src, row.t)
-                                   : makeImage(src, row.t);
-        it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
-        it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
-        items.push(it);
-        killItem(b);   // v3.3: any selection closes the pane
+      } else {
+        handleFileSelect(row, b);
       }
       return;
     }
@@ -1560,23 +2032,168 @@ function renderNote(text) {
   }).join("\n");
 }
 
-async function openPanel(card) {
-  if (items.some(i => i.type === "panel" && i.def === card.def)) return;
-  let text = "(couldn't load the note)";
+const NOTE_CACHE = new Map();
+
+async function renderPdfDocument(p, filePath) {
+  const scrollContainer = p.el.querySelector(".scroll");
+  if (!scrollContainer) return;
+  
   try {
-    const r = await fetch("/note?f=" + encodeURIComponent(card.def.file));
-    if (r.ok) text = await r.text();
-  } catch (e) {}
+    if (!window.pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    if (window.pdfjsLib && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    scrollContainer.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.8;font-family:inherit;">Rendering Holographic Document...</div>`;
+
+    const pdf = await window.pdfjsLib.getDocument("/note?f=" + encodeURIComponent(filePath)).promise;
+    scrollContainer.innerHTML = "";
+
+    let isHologram = true;
+    const modeBtn = p.el.querySelector(".pdf-mode-toggle");
+    if (modeBtn) {
+      modeBtn.onclick = (e) => {
+        e.stopPropagation();
+        isHologram = !isHologram;
+        modeBtn.textContent = isHologram ? "🔮 Hologram" : "📄 Paper";
+        scrollContainer.querySelectorAll(".pdf-page-canvas").forEach(c => {
+          c.className = "pdf-page-canvas " + (isHologram ? "hologram-mode" : "paper-mode");
+        });
+      };
+    }
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.6 });
+      const pageWrapper = document.createElement("div");
+      pageWrapper.style.textAlign = "center";
+      pageWrapper.style.marginBottom = "18px";
+      
+      const canvas = document.createElement("canvas");
+      canvas.className = "pdf-page-canvas " + (isHologram ? "hologram-mode" : "paper-mode");
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      const ctx = canvas.getContext("2d");
+      
+      pageWrapper.appendChild(canvas);
+      scrollContainer.appendChild(pageWrapper);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    }
+  } catch (err) {
+    if (scrollContainer) {
+      scrollContainer.innerHTML = `
+        <div style="padding:30px;text-align:center;">
+          <div style="color:#ff8888;margin-bottom:14px;font-size:14px;">(Could not render document canvas: ${escT(err.message || err)})</div>
+          <a href="/note?f=${encodeURIComponent(filePath)}" target="_blank" style="color:#00e5ff;font-size:13px;">Open in Browser Tab ↗</a>
+        </div>`;
+    }
+  }
+}
+
+async function openPanel(card) {
+  const filePath = (card && card.def && card.def.file) || "";
+  const title = (card && card.def && card.def.title) || filePath.split("/").pop().replace(/\.[^/.]+$/, "") || "Note";
+  const ext = filePath.split(".").pop().toLowerCase();
+  
+  const existing = items.find(i => i.type === "panel" && i.def && (i.def.file === filePath || (filePath && i.def.file && i.def.file.endsWith(filePath))));
+  if (existing) {
+    existing.x = innerWidth * 0.5;
+    existing.y = innerHeight * 0.44;
+    existing.anim = { k: "in", t: 0 };
+    BEHIND.appendChild(existing.el);
+    return;
+  }
+
+  const isPdf = ext === "pdf";
+  const isAudio = ["mp3", "wav", "m4a", "ogg", "aac"].includes(ext);
+  const isVideo = ["mp4", "webm", "mov", "mkv"].includes(ext);
+  const isBinary = ["blend", "blend1", "zip", "7z", "rar", "tar", "gz", "exe", "msi", "doc", "docx", "pptx", "xlsx"].includes(ext);
+
+  let initialHtml = "";
+  let barActions = "";
+  if (isPdf) {
+    initialHtml = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.8;">Loading Document...</div>`;
+    barActions = `
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="pdf-mode-toggle" style="background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.5);color:#00e5ff;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:bold;">🔮 Hologram</button>
+        <a href="/note?f=${encodeURIComponent(filePath)}" target="_blank" style="color:#8ff0e4;font-size:11px;text-decoration:none;border:1px solid rgba(143,240,228,0.4);padding:3px 10px;border-radius:6px;background:rgba(10,30,30,0.6);">Open ↗</a>
+      </div>`;
+  } else if (isAudio) {
+    initialHtml = `
+      <div style="padding:60px 20px;text-align:center;">
+        <div style="font-size:54px;margin-bottom:20px;">🎵</div>
+        <div style="font-size:16px;font-weight:bold;margin-bottom:16px;color:#8ff0e4;">${escT(title)}</div>
+        <audio controls src="/note?f=${encodeURIComponent(filePath)}" style="width:90%;margin-bottom:20px;"></audio>
+        <div><a href="/note?f=${encodeURIComponent(filePath)}" target="_blank" style="color:#8ff0e4;font-size:12px;text-decoration:none;">Download Audio File ↗</a></div>
+      </div>`;
+  } else if (isVideo) {
+    initialHtml = `
+      <div style="padding:10px;text-align:center;display:flex;flex-direction:column;height:100%;">
+        <video controls src="/note?f=${encodeURIComponent(filePath)}" style="width:100%;max-height:540px;border-radius:10px;background:#000;"></video>
+      </div>`;
+  } else if (isBinary) {
+    initialHtml = `
+      <div style="padding:60px 20px;text-align:center;">
+        <div style="font-size:54px;margin-bottom:20px;">📦</div>
+        <div style="font-size:18px;font-weight:bold;margin-bottom:10px;color:#8ff0e4;">${escT(title)}</div>
+        <div style="opacity:0.7;font-size:13px;margin-bottom:24px;">Binary / Application File (.${ext.toUpperCase()})</div>
+        <a href="/note?f=${encodeURIComponent(filePath)}" download style="display:inline-block;background:rgba(0,229,255,0.2);border:1px solid #00e5ff;color:#00e5ff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:bold;letter-spacing:1px;">Download / Open File ↗</a>
+      </div>`;
+  } else {
+    const cached = NOTE_CACHE.get(filePath);
+    initialHtml = cached ? renderNote(cached) : `<div class="loading-note" style="padding:24px;opacity:0.6;font-size:15px;letter-spacing:1px;">Loading ${escT(title)}...</div>`;
+  }
+
   const el = document.createElement("div");
   el.className = "panel";
-  el.innerHTML = `<div class="bar"><h3>${escT(card.def.file.split("/").pop().replace(".md",""))}</h3></div>` +
-                 `<div class="body"><div class="scroll">${renderNote(text)}</div></div>`;
+  el.innerHTML = `
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="bar">
+      <h3>${escT(title)}</h3>
+    </div>
+    <div class="body"><div class="scroll">${initialHtml}</div></div>`;
   BEHIND.appendChild(el);
   const p = { el, id: UID++, type: "panel", def: card.def, x: innerWidth * 0.5,
               y: innerHeight * 0.44, scale: 1, vx: 0, vy: 0, grabbedBy: [],
               ox: 0, oy: 0, flying: false, stretch: null, scrollY: 0,
               body: el.querySelector(".scroll") };
+  p.anim = { k: "in", t: 0 };
+  p.el.style.opacity = "0.05";
+
+  bindItemPointerEvents(p);
   items.push(p);
+
+  if (isPdf) {
+    renderPdfDocument(p, filePath);
+  } else if (!isAudio && !isVideo && !isBinary && !NOTE_CACHE.has(filePath) && filePath) {
+    try {
+      const r = await fetch("/note?f=" + encodeURIComponent(filePath));
+      if (r.ok) {
+        const text = await r.text();
+        NOTE_CACHE.set(filePath, text);
+        if (p.el && p.el.isConnected) {
+          p.body.innerHTML = renderNote(text);
+        }
+      } else {
+        if (p.el && p.el.isConnected) {
+          p.body.innerHTML = `<div style="padding:24px;color:#ff8888;font-size:14px;">(Could not load "${escT(title)}")</div>`;
+        }
+      }
+    } catch (e) {
+      if (p.el && p.el.isConnected) {
+        p.body.innerHTML = `<div style="padding:24px;color:#ff8888;font-size:14px;">(Network error loading "${escT(title)}")</div>`;
+      }
+    }
+  }
 }
 
 function toast(msg, ms = 2500) {
@@ -1621,8 +2238,18 @@ async function startCam(deviceId) {
     }
     if (!stream) throw e;
   }
+  cam.muted = true;
+  cam.playsInline = true;
   cam.srcObject = stream;
-  await new Promise(r => cam.onloadedmetadata = r);
+  await new Promise(r => {
+    if (cam.readyState >= 1) r();
+    else cam.onloadedmetadata = r;
+  });
+  try {
+    await cam.play();
+  } catch (playErr) {
+    console.warn("cam.play catch:", playErr);
+  }
   camDevices = (await navigator.mediaDevices.enumerateDevices())
     .filter(d => d.kind === "videoinput");
   const live = stream.getVideoTracks()[0];
@@ -1648,6 +2275,112 @@ async function cycleCam() {
   localStorage.setItem("stage-cam", next.deviceId);
   lastVideoTs = -1;
 }
+
+const isEmbedded = (window.parent && window.parent !== window);
+let cameraPaused = isEmbedded;
+
+function pauseCam() {
+  cameraPaused = true;
+  if (cam && cam.srcObject) {
+    try {
+      const tracks = cam.srcObject.getTracks();
+      tracks.forEach(t => {
+        t.stop();
+        t.enabled = false;
+      });
+    } catch (e) {}
+    cam.srcObject = null;
+    cam.src = "";
+  }
+}
+
+async function initTracker() {
+  if (landmarker) return landmarker;
+  try {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    landmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+        delegate: "GPU"
+      },
+      numHands: 2,
+      runningMode: "VIDEO",
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5
+    });
+    toast("hand tracker ready");
+    return landmarker;
+  } catch (gpuErr) {
+    console.warn("GPU tracker failed, falling back to CPU:", gpuErr);
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+          delegate: "CPU"
+        },
+        numHands: 2,
+        runningMode: "VIDEO",
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5
+      });
+      toast("hand tracker ready (CPU)");
+      return landmarker;
+    } catch (cpuErr) {
+      console.error("Tracker init failed:", cpuErr);
+      toast("tracker error: " + cpuErr.message);
+    }
+  }
+}
+
+async function resumeCam() {
+  cameraPaused = false;
+  lastVideoTs = -1;
+  // If items were placed at (0, 0) during hidden boot or zero dimensions, reposition cleanly!
+  if (items.length === 0 || (items.length === 1 && (items[0].x < 100 || items[0].y < 100))) {
+    spawnStage(0.30, 0.45);
+  }
+  try {
+    await pickInitialCam();
+  } catch (e) {
+    console.warn("Error resuming camera:", e);
+    toast("camera error: " + (e.message || "access denied"));
+  }
+  if (!landmarker) {
+    await initTracker();
+  }
+}
+
+window.addEventListener("resize", () => {
+  if (items.length === 1 && items[0].type === "widget" && items[0].def && items[0].def.w === "ring") {
+    items[0].x = innerWidth * 0.30;
+    items[0].y = innerHeight * 0.45;
+  }
+});
+
+function exitToDesktop() {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage("exit-barehands", "*");
+  } else {
+    window.location.href = "/";
+  }
+}
+
+window.exitToDesktop = exitToDesktop;
+window.pauseCam = pauseCam;
+window.resumeCam = resumeCam;
+
+document.getElementById("desktop-exit-btn")?.addEventListener("click", exitToDesktop);
+
+window.addEventListener("message", async (e) => {
+  if (e.data === "camera-pause") {
+    pauseCam();
+  } else if (e.data === "camera-resume") {
+    await resumeCam();
+  }
+});
 
 let currentVoiceConfig = { mic_mode: "ptt", ptt_key: "right_alt" };
 
@@ -1726,6 +2459,30 @@ document.getElementById("vhud-mode-select")?.addEventListener("change", onVoiceM
 document.getElementById("vhud-key-select")?.addEventListener("change", onVoiceModalChange);
 document.getElementById("vhud-toggle-btn")?.addEventListener("click", toggleMicModeQuick);
 
+// Auto-hide HUD buttons ("Desktop studio", "Voice HUD", and bottom tips) on 5s mouse inactivity
+let mouseIdleTimer = null;
+function resetMouseIdleTimer() {
+  const modal = document.getElementById("voice-modal");
+  const isModalOpen = modal && modal.style.display === "block";
+
+  document.body.classList.remove("mouse-idle");
+  clearTimeout(mouseIdleTimer);
+
+  if (!isModalOpen) {
+    mouseIdleTimer = setTimeout(() => {
+      const modalNow = document.getElementById("voice-modal");
+      if (!modalNow || modalNow.style.display !== "block") {
+        document.body.classList.add("mouse-idle");
+      }
+    }, 5000);
+  }
+}
+
+["mousemove", "mousedown", "wheel", "pointerdown", "touchstart"].forEach(evt => {
+  window.addEventListener(evt, resetMouseIdleTimer, { passive: true });
+});
+resetMouseIdleTimer();
+
 addEventListener("keydown", e => {
   // live respawn: re-read the notes AND props trees from disk before
   // redrawing — a freshly dropped file appears on a plain R press
@@ -1744,7 +2501,8 @@ addEventListener("keydown", e => {
 });
 
 function toScreen(lm) {
-  const vw = cam.videoWidth, vh = cam.videoHeight;
+  const vw = (cam && cam.videoWidth) ? cam.videoWidth : (innerWidth || 1920);
+  const vh = (cam && cam.videoHeight) ? cam.videoHeight : (innerHeight || 1080);
   const scale = Math.max(innerWidth / vw, innerHeight / vh);
   const dw = vw * scale, dh = vh * scale;
   const ox = (innerWidth - dw) / 2, oy = (innerHeight - dh) / 2;
@@ -1779,9 +2537,17 @@ function dropCursor(i) {
 
 function hitTest(cur) {
   for (let i = items.length - 1; i >= 0; i--) {
-    const c = items[i], r = c.el.getBoundingClientRect();
-    if (cur.x > r.left - 24 && cur.x < r.right + 24 &&
-        cur.y > r.top - 24 && cur.y < r.bottom + 24) return c;
+    const c = items[i];
+    if (!c.el || !c.el.isConnected) continue;
+    const r = c.el.getBoundingClientRect();
+    if (c.type === "orb" || (c.type === "widget" && c.def && c.def.w === "ring")) {
+      const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+      const rad = Math.max(r.width, r.height) / 2 + 48;
+      if (Math.hypot(cur.x - cx, cur.y - cy) <= rad) return c;
+    } else {
+      if (cur.x > r.left - 48 && cur.x < r.right + 48 &&
+          cur.y > r.top - 48 && cur.y < r.bottom + 48) return c;
+    }
   }
   return null;
 }
@@ -1810,10 +2576,9 @@ function beginGrab(c, i, cur) {
     // punishing) PROMOTES to move — the note glows and latches to the
     // hand. Cards move immediately as always.
     if (c.type === "orb") {
-      // bloom orbs are pinned TAP targets (Phase 2): pinchable, a quick
-      // release opens their pane, but they never move — transient furniture
       c.mode = "pinned";
       c.tapX = cur.x; c.tapY = cur.y;
+      openBrowser(c.def.orb, c.x, c.y);
     } else if (c.type === "panel" || c.type === "browser") {
       // v3.3/v3.8 (Jared: "I need a dedicated place I can grab...
       // make the same rules apply to notes"): THE GRIP BAR on notes
@@ -1840,6 +2605,15 @@ function beginGrab(c, i, cur) {
       c.mode = "move";
       c.holdX = cur.x; c.holdY = cur.y; c.holdT = performance.now();
       c.tapX = cur.x; c.tapY = cur.y;   // v3.1: tap-close discrimination
+    } else if (c.type === "video" || c.type === "img") {
+      const headerEl = c.el.querySelector(".media-header");
+      const headerR = headerEl && headerEl.getBoundingClientRect();
+      const isHeader = headerR && cur.y >= headerR.top && cur.y <= headerR.bottom &&
+                       cur.x >= headerR.left && cur.x <= headerR.right;
+      c.barGrab = !!isHeader;
+      c.mode = "move";
+      c.holdX = cur.x; c.holdY = cur.y; c.holdT = performance.now();
+      c.tapX = cur.x; c.tapY = cur.y;
     } else if (c.type === "widget") {
       // the ring: carried like a card; a quick tap blooms the orbs
       c.mode = "move";
@@ -1881,7 +2655,7 @@ function endGrab(c, i, cur) {
       const bMs = performance.now() - (cur.grabT || 0);
       const bTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (bMs < 350 && bTrav < 24) browserTap(c, cur);
+      if (bMs < 650 && bTrav < 60) browserTap(c, cur);
     }
     // v3.3/v3.8: a quick tap on the GRIP BAR closes — notes and
     // folder panes alike
@@ -1890,7 +2664,7 @@ function endGrab(c, i, cur) {
       const gMs = performance.now() - (cur.grabT || 0);
       const gTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (gMs < 350 && gTrav < 24) killItem(c);
+      if (gMs < 650 && gTrav < 60) killItem(c);
       c.barGrab = false;
     }
     // GESTURE v3 (2026-08-14, Jared's spec — "make it a single pinch"):
@@ -1903,21 +2677,61 @@ function endGrab(c, i, cur) {
       const tMs = performance.now() - (cur.grabT || 0);
       const tTrav = Math.hypot(cur.x - (c.tapX || cur.x),
                                cur.y - (c.tapY || cur.y));
-      if (tMs < 300 && tTrav < 26) openPanel(c);
+      if (tMs < 650 && tTrav < 60) openPanel(c);
     }
-    // GESTURE v3.1 (2026-08-14, the crush is DEAD — "that is happening
-    // too naturally"): THE TAP IS SYMMETRIC — tap opens closed things,
-    // tap CLOSES open things. Quick near-still release on a note,
-    // image, or hologram = it recedes. Widgets/rows/orbs keep their own
-    // tap meanings; a fresh force-pull catch can't be tap-killed.
-    // v3.8: notes close at the BAR only (matching folders) — a body
-    // tap can't kill a note mid-read; images/models keep tap-anywhere
-    if ((c.type === "img" || c.type === "model")
-        && !pullFresh && !c.flying) {
+    // Bare-Hands Gesture Controls for Video (Play/Pause/Unmute on screen tap, Close/Sound on bar tap):
+    if (c.type === "video" && !pullFresh && !c.flying) {
+      const vMs = performance.now() - (cur.grabT || 0);
+      const vTrav = Math.hypot(cur.x - (c.tapX || cur.x), cur.y - (c.tapY || cur.y));
+      if (vMs < 650 && vTrav < 60) {
+        const audioBtn = c.el.querySelector(".video-audio-btn");
+        const audioR = audioBtn && audioBtn.getBoundingClientRect();
+        const hitAudio = audioR && cur.x >= audioR.left - 24 && cur.x <= audioR.right + 24 &&
+                                   cur.y >= audioR.top - 24 && cur.y <= audioR.bottom + 24;
+        if (hitAudio) {
+          if (c.toggleAudio) c.toggleAudio();
+        } else if (c.barGrab) {
+          killItem(c);
+        } else {
+          const video = c.el.querySelector("video");
+          const playPulse = c.el.querySelector(".video-play-pulse");
+          if (video) {
+            if (video.muted) {
+              if (c.setAudio) c.setAudio(true);
+              if (video.paused) video.play().catch(() => {});
+            } else if (video.paused) {
+              video.play().then(() => {
+                if (playPulse) {
+                  playPulse.textContent = "▶";
+                  playPulse.classList.add("active");
+                  setTimeout(() => playPulse.classList.remove("active"), 400);
+                }
+              }).catch(() => {});
+            } else {
+              video.pause();
+              if (playPulse) {
+                playPulse.textContent = "⏸";
+                playPulse.classList.add("active");
+                setTimeout(() => playPulse.classList.remove("active"), 400);
+              }
+            }
+          }
+        }
+      }
+    }
+    // Bare-Hands Gesture Controls for Photos & Models:
+    if ((c.type === "img" || c.type === "model") && !pullFresh && !c.flying) {
       const xMs = performance.now() - (cur.grabT || 0);
-      const xTrav = Math.hypot(cur.x - (c.tapX || cur.x),
-                               cur.y - (c.tapY || cur.y));
-      if (xMs < 300 && xTrav < 26) killItem(c);
+      const xTrav = Math.hypot(cur.x - (c.tapX || cur.x), cur.y - (c.tapY || cur.y));
+      if (xMs < 650 && xTrav < 60) {
+        if (c.barGrab) {
+          killItem(c);
+        } else {
+          const holoBtn = c.el.querySelector(".holo-toggle");
+          if (holoBtn) holoBtn.click();
+          else killItem(c);
+        }
+      }
     }
     // PHASE 2 quick-tap releases: the RING toggles its orbital bloom;
     // an ORB grows into its browser pane (same discrimination gate as
@@ -1926,14 +2740,12 @@ function endGrab(c, i, cur) {
       const qMs = performance.now() - (cur.grabT || 0);
       const qTr = Math.hypot(cur.x - (c.tapX ?? cur.x),
                              cur.y - (c.tapY ?? cur.y));
-      if (qMs < 350 && qTr < 24) {
+      if (qMs < 650 && qTr < 60) {
         if (c.type === "widget" && c.def.w === "ring" &&
             c.mode === "move") {
           const sc = RINGS.get(c.id);
           if (sc) sc.tapT = Date.now() / 1000;   // the ring's tap pulse
           ringToggle(c);
-        } else if (c.type === "orb") {
-          openBrowser(c.def.orb, c.x, c.y);
         }
       }
     }
@@ -2158,40 +2970,47 @@ function physics(dt) {
 }
 
 async function boot() {
-  await pickInitialCam();
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
-  landmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: { modelAssetPath:
-      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-      delegate: "GPU" },
-    numHands: 2, runningMode: "VIDEO",
-    // phantom-hand filter (a real-room catch: debug showed a hand with
-    // none in frame — a busy background is full of hand-shaped clutter
-    // and the 0.5 defaults hallucinate there; a ghost hand can grab items
-    // and false-trigger gestures). 0.65 helped but the ghost
-    // survived → 0.7. Ease back toward 0.65 if real-hand pickup ever
-    // feels laggy; past 0.75 real tracking suffers.
-    minHandDetectionConfidence: 0.7,
-    // v3.9.9 (his blur diagnosis: fast hands smear and get DROPPED,
-    // and re-acquisition eats the frames that felt like grab-lag):
-    // KEEP-tracking eased to 0.5 so a latched hand rides through blur;
-    // fresh DETECTION stays 0.7 — the busy-background ghost wall holds.
-    minHandPresenceConfidence: 0.5 });
-  document.getElementById("boot").remove();
+  if (!isEmbedded) {
+    try {
+      await pickInitialCam();
+      await initTracker();
+    } catch (camErr) {
+      console.warn("Camera init deferred/warning:", camErr);
+    }
+  }
+  const bootEl = document.getElementById("boot");
+  if (bootEl) bootEl.remove();
   await loadTree();
   loadVoiceConfig();
   spawnStage();
   toast("barehands v1.0", 2000);  // build fingerprint
+  if (isEmbedded) {
+    try { window.parent.postMessage("stage-ready", "*"); } catch (e) {}
+  }
   let lastT = performance.now();
 
   function frame(now) {
     const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
-    if (cam.currentTime !== lastVideoTs) {
+    if (cameraPaused || !cam || !cam.srcObject) {
+      physics(dt);
+      renderModels();
+      renderRings();
+      requestAnimationFrame(frame);
+      return;
+    }
+    if (cam.paused) {
+      cam.play().catch(() => {});
+    }
+    if (landmarker && (cam.currentTime !== lastVideoTs || lastVideoTs === -1)) {
       lastVideoTs = cam.currentTime;
-      const res = landmarker.detectForVideo(cam, now);
+      let res = null;
+      try {
+        res = landmarker.detectForVideo(cam, now);
+      } catch (detErr) {
+        res = { landmarks: [] };
+      }
       const seen = new Set();
-      (res.landmarks || []).forEach((lms, i) => {
+      (res && res.landmarks || []).forEach((lms, i) => {
         seen.add(i);
         const cur = getCursor(i);
         const tip = toScreen(lms[8]), thumb = toScreen(lms[4]);
@@ -2205,88 +3024,18 @@ async function boot() {
         const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
         const ratio = span > 0 ? gap / span : 1;
         const px = (tip.x + thumb.x) / 2, py = (tip.y + thumb.y) / 2;
-        cur.x += (px - cur.x) * 0.45; cur.y += (py - cur.y) * 0.45;
+        cur.x += (px - cur.x) * 0.80; cur.y += (py - cur.y) * 0.80;
         cur.history.push({ x: cur.x, y: cur.y, t: now });
-        if (cur.history.length > 10) cur.history.shift();   // v3.6: peak-fling window
+        if (cur.history.length > 10) cur.history.shift();
 
         const wasPinched = cur.pinched;
-        // v3.6.1 (his catch: "it is treating a closed fist like a
-        // pinch") — a fist wraps the thumb onto the index tip, so the
-        // gap test alone can't tell touch from clench. The tell: a
-        // fist folds ALL fingers; a deliberate pinch leaves the other
-        // three readable. Fresh grabs demand a non-fist; a hand
-        // already HOLDING is exempt (the force-pull carry is a fist).
         const W0 = lms[0];
         const extArr = [[8, 5], [12, 9], [16, 13], [20, 17]].map(([t, m]) =>
           Math.hypot(lms[t].x - W0.x, lms[t].y - W0.y) >
           1.45 * Math.hypot(lms[m].x - W0.x, lms[m].y - W0.y));
         const extFingers = extArr.filter(Boolean).length;
         const holdingI = items.some(k => k.grabbedBy.includes(i));
-        // v3.7 — FITTED FROM HIS PINCH CORPUS (3 correct / 3 fists,
-        // 2026-08-14 afternoon): the correct pinch is the OK-SIGN —
-        // index curled onto the thumb while middle/ring/pinky ARCH OUT
-        // past the knuckle circle (f12 ≥1.44 / f16 ≥1.52 / f20 ≥1.59
-        // in every correct sample); every fist folds them in (max
-        // 1.24). Cut mid-canyon. The v3.6.2 circle and v3.6.3 wrapped-
-        // thumb theories are DEAD — the thumb gate was rejecting a
-        // CORRECT pinch (t 0.58 vs its 0.6 bar), and occlusion blinded
-        // the circle. The force-pull carry stays exempt via holdingI.
-        const fR = (t, m) => {
-          const td = Math.hypot(lms[t].x - W0.x, lms[t].y - W0.y);
-          const md = Math.hypot(lms[m].x - W0.x, lms[m].y - W0.y);
-          return md > 0 ? td / md : 9;
-        };
-        // v3.8.2 — THE CONTRAST LAW (6 correct / 6 impostor corpus;
-        // his low-arch correct pinch landed INSIDE an impostor's arch
-        // range, ending absolute-height gating): the OK-sign's true
-        // signature is index-vs-the-rest CONTRAST — the index curls IN
-        // to the thumb while middle/ring/pinky stay out. Arch delta
-        // (backMean − f8) ≥ 0.28 in every correct sample, ≤ 0.07 in
-        // every impostor incl. both near-pinches. Cut at 0.18, with a
-        // 1.30 back-arch floor as the fist wall. The EMA sustained
-        // read stays — lucky frames still buy nothing.
-        const f8v = fR(8, 5);
-        const backMean = (fR(12, 9) + fR(16, 13) + fR(20, 17)) / 3;
-        // v3.8.4 — TWO ORIENTATION REGIMES (his profiled-pinch sample:
-        // aspect 1.63 / thumb-dist 1.18 vs 2.1-5.5 / 0.4-0.7 in ALL
-        // frontal samples — a rotated palm compresses the arch ratios
-        // and the contrast law's numbers don't transfer). The regime
-        // self-announces via palm aspect; in PROFILE the thumb is the
-        // judge — a profile pinch rides it far off the knuckle row
-        // (1.16+), every fist ever sampled wraps it tight (≤0.72).
-        const palmW = Math.hypot(lms[5].x - lms[17].x,
-                                 lms[5].y - lms[17].y);
-        const aspect = palmW > 0 ? span / palmW : 9;
-        const tRel = span > 0 ? Math.hypot(
-          lms[4].x - lms[13].x, lms[4].y - lms[13].y) / span : 0;
-        // v3.8.5 (his mid-aspect catch: a contrast-perfect pinch at
-        // aspect 1.93 got shunted into the profile lane and judged by
-        // the wrong rule — the regimes OVERLAP in the middle): EITHER
-        // signature admits — contrast (frontal) OR far-thumb (profile).
-        // Every correct sample passes at least one; every impostor
-        // sampled passes neither.
-        const okBack = (backMean - f8v > 0.18 && backMean > 1.30) ||
-                       (aspect < 2.0 && tRel > 0.95);
-        // v3.8.3 (his tap report: drag fixed, tap still flaky) — the
-        // EMA charged too slow for a snap-tap (~6 frames): rate up to
-        // 0.30 = three clean consecutive frames (~100ms) to trust,
-        // which every real tap has; one or two lucky impostor frames
-        // still fall short of the 0.55 bar.
-        cur.okEma = 0.70 * (cur.okEma || 0) + 0.30 * (okBack ? 1 : 0);
-        // v3.8.6 (his call: "as soon as my index and thumb touch that
-        // pinch should activate") — instant path: TWO consecutive
-        // clean frames (this one + the last, 33ms — the camera's own
-        // floor) enter immediately; the charged-EMA path still serves
-        // hands whose approach was messy. Single lucky frames still
-        // buy nothing.
-        const okNow = okBack && cur.okPrev;
-        cur.okPrev = okBack;
-        // v3.9.8 (his mid-drag fling report: fast dragging smears the
-        // fingers, the gap falsely inflates past the release bar for a
-        // frame, and the phantom release fires at drag velocity = a
-        // toss he never threw): SPEED-AWARE RELEASE — a fast-moving
-        // hand must open FULLY (0.85) to release; a slow hand releases
-        // at 0.55 as before. Real throws open wide naturally.
+        
         let hspd = 0;
         const hh0 = cur.history;
         if (hh0.length >= 2) {
@@ -2294,67 +3043,20 @@ async function boot() {
           const pdt = (p1.t - p0.t) / 1000;
           if (pdt > 0) hspd = Math.hypot(p1.x - p0.x, p1.y - p0.y) / pdt;
         }
-        // v3.9.25 (still too sticky): the fast-release bar eased
-        // 0.85→0.70 — blur under-reads a throwing hand's open, and the
-        // 2-frame sustain already guards the phantom spikes
-        const relBar = hspd > 800 ? 0.70 : 0.55;
-        // v3.9.9: at speed, a release must be SEEN OPEN two frames
-        // running — a single blur spike can't fake a throw
+
+        const relBar = hspd > 800 ? 0.65 : 0.58;
         const openRead = ratio >= relBar;
-        const relOk = hspd > 800 ? (openRead && cur.openPrev) : openRead;
-        cur.openPrev = openRead;
-        // v3.9.12 (his second left-hand reading topped 0.28 — riding
-        // whatever ceiling gets set): the gap number is so angle-
-        // polluted that his TOUCHING left hand reads WIDER (0.24 med)
-        // than the not-touching near-pinch ever did (0.16) — r cannot
-        // order touch vs close across poses. The CONTRAST LAW is the
-        // real touch enforcement; the gap ceiling steps back to a
-        // margin role. v3.9.13: parked at 0.38 — its NATURAL LIMIT,
-        // one notch under the claw's 0.45 mouth floor (a forming claw
-        // must never read as a pinch). This ceiling cannot rise
-        // further; any future "pinch not taking" is signature or
-        // timing, never gap.
-        // v3.9.24 = the v3.9.22 state RESTORED (the coupling-law
-        // experiment lived twenty minutes — Jared: "put it back how it
-        // was"): regime-aware ceiling — frontal touch range 0.22,
-        // rotated-palm allowance 0.38.
-        // v3.9.27 = the two-band ceiling RESTORED (the gap ladder
-        // lived one round — Jared: "put it back how it was. I found
-        // the real problem").
-        // v3.9.30 — THE SANITY BOUND (Jared: "prevent it from
-        // hallucinating. If it can't SEE the two fingers pinched,
-        // don't do anything or drop it"): a hand-resting-on-the-face
-        // sample read palm aspect 7-8 — the knuckle row collapsed, a
-        // geometrically impossible hand. No REAL hand in the whole
-        // two-day corpus exceeded 5.5. Aspect > 6 = the tracker is
-        // guessing, and a guess can neither pinch nor keep a pinch.
-        // (v3.9.31: the visibility clause is GONE — the hand model
-        // carries the field but never populates it, so it read 0 on
-        // every frame and declared every real hand a hallucination)
-        const handGarbage = aspect > 6;
-        if (handGarbage) cur.probKill = true;   // garbage drops mute taps
-        // v3.9.32 (his final pinch sample: perfect signature, gap
-        // 0.22-0.30 vs the 0.22 frontal ceiling): frontal eased to
-        // 0.32 — the contrast law carries the touch duty.
-        cur.pinched = handGarbage ? false
-                    : wasPinched ? !relOk
-                                 : ratio < (aspect < 2.0 ? 0.38 : 0.32) &&
-                                   (okNow || cur.okEma > 0.55 || holdingI);
-        // v3.9.15 — PINCH PROBATION (his fold-through catch: closing a
-        // hand into a curl passes THROUGH a lawful OK-sign for two
-        // frames — index meets thumb while the back fingers are still
-        // mid-fold and arched — then hysteresis holds the bogus grab):
-        // a fresh pinch must KEEP its signature through its first
-        // 400ms; four straight signature-dead frames = silent drop.
-        // Skipped at speed (fast-drag blur would false-trip it) and
-        // for force-pull carries (holdingI grips are fist-legal).
-        if (cur.pinched && !wasPinched) { cur.badRun = 0; cur.probKill = false; }
-        else if (cur.pinched && wasPinched &&
-                 now - (cur.pinchT || 0) < 400 && hspd < 600 && !holdingI) {
-          cur.badRun = okBack ? 0 : (cur.badRun || 0) + 1;
-          if (cur.badRun >= 4) { cur.pinched = false; cur.probKill = true; }
-        } else cur.badRun = 0;
-        if (cur.pinched) cur.lastPinchT = now;   // v3.9: clap disqualifier
+        const palmW = Math.hypot(lms[5].x - lms[17].x, lms[5].y - lms[17].y);
+        const aspect = palmW > 0 ? span / palmW : 1;
+        const handGarbage = aspect > 7.5;
+        if (handGarbage) cur.probKill = true;
+
+        const pinched = !handGarbage && (wasPinched
+          ? !openRead
+          : (ratio <= 0.44 || holdingI));
+
+        cur.pinched = pinched;
+        if (cur.pinched) cur.lastPinchT = now;
         cur.el.classList.toggle("pinched", cur.pinched);
         cur.el.style.left = cur.x + "px"; cur.el.style.top = cur.y + "px";
 
@@ -2852,42 +3554,40 @@ async function boot() {
           }
 
         }
-        if (dbg.style.display === "block")
+        if (dbg.style.display === "block") {
+          const cidsAll = Object.keys(cursors);
+          let clapDbg = "";
+          if (cidsAll.length >= 2) {
+            const cA = cursors[cidsAll[0]], cB = cursors[cidsAll[1]];
+            const wD = Math.round(Math.hypot((cA.wristX||0)-(cB.wristX||0), (cA.wristY||0)-(cB.wristY||0)));
+            clapDbg = `\nclap: up ${(cA.handUp||0).toFixed(2)}/${(cB.handUp||0).toFixed(2)} wD ${wD}px`;
+          }
           dbg.textContent = `mode ${MODE}\nfps ${fps}\nhands ${res.landmarks.length}` +
             `\npinch ${ratio.toFixed(2)} ${cur.pinched ? "CLOSED" : "open"}` +
             `\npalm ${cur.palmOpen ? "OPEN" : "-"}${cur.fpSplay ? " CLAW" : ""} pull ph${cur.fp ? cur.fp.ph : 0}` +
-            `\n${cur.fpDbg || ""}` + (SAMPLED ? `\n${SAMPLED}` : "");
+            `\n${cur.fpDbg || ""}${clapDbg}` + (SAMPLED ? `\n${SAMPLED}` : "");
+        }
       });
       Object.keys(cursors).map(Number).forEach(i => { if (!seen.has(i)) dropCursor(i); });
 
-      // ---- GESTURE v3.9: THE DELIBERATE CLAP (Jared, after false
-      // resets kept wiping his pinch tests: "that reset needs to be
-      // more deliberate!"). Three locks on top of the speed signature:
-      // (1) both hands OPEN during the WIDE approach — a pinching hand
-      // can't start a clap; openness is only waived near contact,
-      // where the blur lives; (2) MUTUAL motion — both hands must
-      // travel toward each other; one hand sweeping past a parked
-      // hand is dead; (3) any hand that pinched in the last 800ms is
-      // disqualified outright.
+      // ---- GESTURE v3.9 / v4: THE PRAYER CLAP (palms together, fingers pointing up)
       const cids = Object.keys(cursors);
       const clapFire = () => {
+        if (typeof foley !== "undefined" && foley.arrive) foley.arrive();
         loadTree().then(() => spawnStage(0.5, 0.42));   // the ring, center
         lastResetT = now; clap.hist.length = 0;
         toast("clap — ring center stage", 900);
       };
       const clapCool = now - lastResetT > 1500 && now - lastClearT > 2500;
+      const closeWristMax = Math.max(innerWidth * 0.15, 200);
+      const closeMcpMax = Math.max(innerWidth * 0.13, 170);
+      const apartMin = Math.min(innerWidth * 0.14, 190);
+
       if (cids.length === 2) {
         const A = cursors[cids[0]], B = cursors[cids[1]];
         const recentPinch = A.pinched || B.pinched ||
-          now - Math.max(A.lastPinchT || 0, B.lastPinchT || 0) < 800;
+          now - Math.max(A.lastPinchT || 0, B.lastPinchT || 0) < 600;
         if (!items.some(k => k.grabbedBy.length) && !recentPinch) {
-          // v3.9.7 — THE PRAYER LAW (Jared's final spec: "my two palms
-          // must make contact and my fingers must be pointed UP").
-          // Pose-first, motion-demoted: fingertip touches leave the
-          // WRISTS far apart (a tent); palm contact brings wrists +
-          // knuckle rows together. Speed no longer matters — only
-          // that the hands WERE apart in the last 800ms (so resting
-          // prayer hands can't refire).
           const wristD = Math.hypot(
             (A.wristX || 0) - (B.wristX || 0),
             (A.wristY || 0) - (B.wristY || 0));
@@ -2895,16 +3595,16 @@ async function boot() {
             (A.mcpX || 0) - (B.mcpX || 0),
             (A.mcpY || 0) - (B.mcpY || 0));
           const bothOpen =
-            (A.softOpen || now - (A.lastSoftT || 0) < 250) &&
-            (B.softOpen || now - (B.lastSoftT || 0) < 250);
-          const bothUp = (A.handUp || 0) > 0.85 && (B.handUp || 0) > 0.85;
+            (A.softOpen || now - (A.lastSoftT || 0) < 450) &&
+            (B.softOpen || now - (B.lastSoftT || 0) < 450);
+          const bothUp = (A.handUp || 0) > 0.55 && (B.handUp || 0) > 0.55;
           clap.hist.push({ t: now, w: wristD,
                            q: (bothOpen && bothUp) ? 1 : 0 });
           while (clap.hist.length && now - clap.hist[0].t > 900)
             clap.hist.shift();
           const wasApart = clap.hist.some(
-            s => now - s.t <= 800 && s.w > innerWidth * 0.18);
-          if (wristD < innerWidth * 0.11 && mcpD < innerWidth * 0.09 &&
+            s => now - s.t <= 800 && s.w > apartMin);
+          if (wristD < closeWristMax && mcpD < closeMcpMax &&
               bothUp && bothOpen && wasApart && clapCool)
             clapFire();
         } else clap.hist.length = 0;
@@ -2913,9 +3613,9 @@ async function boot() {
         // honored only if the pose was QUALIFIED (open + vertical) and
         // closing when tracking died
         const last = clap.hist[clap.hist.length - 1];
-        if (now - last.t < 200 && last.q && last.w < innerWidth * 0.16 &&
+        if (now - last.t < 250 && last.q && last.w < closeWristMax * 1.25 &&
             clap.hist.some(s => last.t - s.t <= 800 &&
-                                s.w > innerWidth * 0.18) &&
+                                s.w > apartMin) &&
             clapCool) clapFire();
         else clap.hist.length = 0;
       }
@@ -2996,9 +3696,11 @@ async function boot() {
 // and OBS canvas sizes may differ.
 
 let lastPush = 0;
+let pushInFlight = false;
 function pushState(now) {
-  if (now - lastPush < 22) return;
+  if (pushInFlight || now - lastPush < 150) return;
   lastPush = now;
+  pushInFlight = true;
   const st = {
     cursors: Object.keys(cursors).sort().map(k => {
       const c = cursors[k];
@@ -3050,7 +3752,8 @@ function pushState(now) {
     }),
   };
   fetch("/state", { method: "POST", body: JSON.stringify(st) })
-    .then(r => r.json()).then(applyCmds).catch(() => {});
+    .then(r => r.json()).then(applyCmds).catch(() => {})
+    .finally(() => { pushInFlight = false; });
 }
 
 // (an earlier whole-screen voice-pulse aura was removed — THE RING

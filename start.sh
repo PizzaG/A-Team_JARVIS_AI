@@ -37,19 +37,13 @@ trap cleanup EXIT INT TERM
 if [ -d "ai-visualizer" ] && [ "$MODE" != "hands" ]; then
   (cd ai-visualizer && exec python3 server.py) &
   PIDS+=($!)
-  echo "[1/2] Web Dashboard & Face started (opening in your browser at http://127.0.0.1:8790/)"
-fi
-
-if [ -d "barehands" ] && [ "$MODE" != "voice" ]; then
-  (cd barehands && exec python3 server.py) &
-  PIDS+=($!)
-  echo "[*] Barehands server started"
+  echo "[1/2] Web Dashboard & Air Board started (opening in your browser at http://127.0.0.1:8790/)"
 fi
 
 if [ -d "backtalk" ] && [ "$MODE" != "web" ]; then
   echo "[2/2] Voice engine starting in this terminal. Hold your talk key to speak; Ctrl-C stops everything."
   cd backtalk && exec uv run python3 -m backtalk.main
 else
-  echo "Servers running at http://127.0.0.1:8790/. Press Ctrl-C to stop."
+  echo "Unified server running at http://127.0.0.1:8790/. Press Ctrl-C to stop."
   wait
 fi

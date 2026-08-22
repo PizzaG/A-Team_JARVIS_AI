@@ -102,14 +102,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   .card.orb { width:150px; height:150px; border-radius:50%; padding:0;
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
-  .card.imgcard { padding:8px; width:auto; overflow:hidden;
-      min-width:240px; min-height:160px; display:flex; align-items:center; justify-content:center;
-      background:linear-gradient(172deg, rgba(20,45,45,0.7), rgba(8,20,22,0.55));
-      border-color:rgba(111,229,214,0.6);
-      box-shadow:0 12px 50px rgba(0,0,0,0.65), 0 0 35px rgba(0,229,255,0.25),
-                 inset 0 1px 0 rgba(191,255,245,0.45); }
-  .card.imgcard img { display:block; max-width:52vw; max-height:65vh;
-                      min-width:200px; min-height:120px; object-fit:contain;
+  .card.imgcard { padding:12px; width:auto; max-width:60vw; overflow:hidden;
+      min-width:280px; min-height:200px; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:linear-gradient(172deg, rgba(20,48,45,0.85), rgba(8,24,24,0.75));
+      border:1.5px solid rgba(111,229,214,0.65); border-radius:16px;
+      box-shadow:0 16px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,229,255,0.25),
+                 inset 0 1px 0 rgba(191,255,245,0.45); backdrop-filter:blur(16px); }
+  .card.imgcard img { display:block; max-width:54vw; max-height:64vh;
+                      min-width:200px; object-fit:contain;
                       border-radius:10px; pointer-events:none; }
   /* MATERIALIZE-AS-LIGHT (Jared's call 8/9): images ARRIVE as hologram
      — teal monochrome light + one scan sweep — then resolve to their
@@ -571,9 +572,9 @@ function makeImage(src, title) {
   const el = document.createElement("div");
   el.className = "card imgcard" + (fx || vid ? " fxcard" : "");
   el.innerHTML = vid
-    ? `<video src="${escT(src)}" autoplay loop muted playsinline></video>`
+    ? `<video src="${escT(src)}" autoplay loop muted playsinline style="display:block;max-width:54vw;max-height:64vh;border-radius:10px;"></video>`
     : `<img src="${escT(src)}" alt="${escT(title || '')}">` +
-      `<div class="imgtitle" style="margin-top:8px;font-size:12px;color:#8ff0e4;font-family:monospace;text-align:center;letter-spacing:0.05em;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escT(title || '')}</div>`;
+      `<div class="imgtitle" style="margin-top:10px;font-size:12px;color:#8ff0e4;font-family:monospace;text-align:center;letter-spacing:0.06em;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${escT(title || '')}</div>`;
   BEHIND.appendChild(el);
   el.classList.add("mat");
   setTimeout(() => el.classList.remove("mat"), 650);

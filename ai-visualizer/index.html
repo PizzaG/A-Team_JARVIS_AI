@@ -652,9 +652,6 @@ function setMode(mode) {
   const dashView = document.getElementById("view-dashboard");
   const vaultView = document.getElementById("view-vault");
   const settingsView = document.getElementById("view-settings");
-  const floatBtn = document.getElementById("floating-mode-btn");
-  const floatText = document.getElementById("floating-btn-text");
-  const floatIcon = floatBtn ? floatBtn.querySelector(".f-icon") : null;
   const navBtn = document.getElementById("nav-mode-btn");
   const iframe = document.getElementById("barehands-frame");
 
@@ -670,9 +667,6 @@ function setMode(mode) {
     // Show barehands
     if (barehandsView) barehandsView.style.display = "flex";
     if (navBtn) navBtn.classList.add("active");
-    if (floatBtn) floatBtn.classList.add("in-barehands");
-    if (floatText) floatText.textContent = "DESKTOP STUDIO";
-    if (floatIcon) floatIcon.textContent = "🖥️";
 
     // Wake up camera in barehands iframe
     if (iframe && iframe.contentWindow) {
@@ -682,9 +676,6 @@ function setMode(mode) {
     // Return to desktop
     if (barehandsView) barehandsView.style.display = "none";
     if (navBtn) navBtn.classList.remove("active");
-    if (floatBtn) floatBtn.classList.remove("in-barehands");
-    if (floatText) floatText.textContent = "AIR BOARD MODE";
-    if (floatIcon) floatIcon.textContent = "🖐️";
 
     // Put camera to sleep in barehands iframe
     if (iframe && iframe.contentWindow) {
@@ -704,14 +695,8 @@ function showTab(tab) {
     }
     const barehandsView = document.getElementById("view-barehands");
     if (barehandsView) barehandsView.style.display = "none";
-    const floatBtn = document.getElementById("floating-mode-btn");
-    const floatText = document.getElementById("floating-btn-text");
-    const floatIcon = floatBtn ? floatBtn.querySelector(".f-icon") : null;
     const navBtn = document.getElementById("nav-mode-btn");
     if (navBtn) navBtn.classList.remove("active");
-    if (floatBtn) floatBtn.classList.remove("in-barehands");
-    if (floatText) floatText.textContent = "AIR BOARD MODE";
-    if (floatIcon) floatIcon.textContent = "🖐️";
     currentMode = "desktop";
   }
 
@@ -1395,12 +1380,5 @@ window.addEventListener("DOMContentLoaded", () => {
   initPttButton();
 });
 </script>
-
-<!-- Floating Mode Switcher Button -->
-<button id="floating-mode-btn" class="floating-mode-btn" onclick="toggleBareHandsMode()" title="Toggle Air Board / Bare Hands Mode (Alt+H / F9)">
-  <span class="f-icon">🖐️</span>
-  <span class="f-text" id="floating-btn-text">AIR BOARD MODE</span>
-</button>
-
 </body>
 </html>

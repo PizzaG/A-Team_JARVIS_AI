@@ -10,5 +10,7 @@ logs/
 .voice_loading_pid
 .voice_alert
 .backtalk_session
-uv.lock
 .aider*
+.voice_history.json
+**/.voice_history.json
+**/voice_history.json

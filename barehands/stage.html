@@ -425,13 +425,66 @@ let landmarker = null, lastVideoTs = -1, frames = 0, fps = 0, lastFpsTs = perfor
 
 let UID = 1;
 
+function bindItemPointerEvents(item) {
+  let isPointerDown = false;
+  let startX = 0, startY = 0;
+  let startItemX = 0, startItemY = 0;
+  let startTime = 0;
+
+  item.el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".close") || e.target.closest(".brow")) return;
+    isPointerDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startItemX = item.x;
+    startItemY = item.y;
+    startTime = performance.now();
+    try { item.el.setPointerCapture(e.pointerId); } catch (err) {}
+    item.el.classList.add("grabbed");
+    e.stopPropagation();
+  });
+
+  item.el.addEventListener("pointermove", (e) => {
+    if (!isPointerDown) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (item.type !== "orb") {
+      item.x = startItemX + dx;
+      item.y = startItemY + dy;
+      item.vx = 0; item.vy = 0;
+    }
+  });
+
+  const onPointerUp = (e) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    item.el.classList.remove("grabbed");
+    const dt = performance.now() - startTime;
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+    if (dt < 400 && dist < 20) {
+      if (item.type === "widget" && item.def && item.def.w === "ring") {
+        ringToggle(item);
+      } else if (item.type === "orb") {
+        openBrowser(item.def.orb, item.x, item.y);
+      } else if (item.type === "img" || item.type === "model") {
+        killItem(item);
+      }
+    }
+  };
+
+  item.el.addEventListener("pointerup", onPointerUp);
+  item.el.addEventListener("pointercancel", onPointerUp);
+}
+
 function makeCard(def) {
   const el = document.createElement("div");
   el.className = "card";
   el.innerHTML = `<h3>${escT(def.title)}</h3><p>${escT(def.body || "")}</p>`;
   BEHIND.appendChild(el);
-  return { el, id: UID++, type: "card", def, x: 0, y: 0, scale: 1, vx: 0, vy: 0,
-           grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+  const it = { el, id: UID++, type: "card", def, x: 0, y: 0, scale: 1, vx: 0, vy: 0,
+               grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
+  bindItemPointerEvents(it);
+  return it;
 }
 
 // ---- FOLEY (2026-08-07): synthesized WebAudio — the objects make SOUND,
@@ -579,6 +632,7 @@ function makeRing() {
     vx: 0, vy: 0, grabbedBy: [], ox: 0, oy: 0, flying: false, stretch: null };
   it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
   RINGS.set(it.id, ringCanvas(el));
+  bindItemPointerEvents(it);
   items.push(it);
   return it;
 }
@@ -1369,9 +1423,11 @@ function makeOrb(def) {
   el.className = "card orb";
   el.innerHTML = `<h3>${escT(def.title)}</h3><p>${escT(def.body || "")}</p>`;
   BEHIND.appendChild(el);
-  return { el, id: UID++, type: "orb", def, x: 0, y: 0, scale: 1,
-           vx: 0, vy: 0, grabbedBy: [], ox: 0, oy: 0, flying: false,
-           stretch: null };
+  const it = { el, id: UID++, type: "orb", def, x: 0, y: 0, scale: 1,
+               vx: 0, vy: 0, grabbedBy: [], ox: 0, oy: 0, flying: false,
+               stretch: null };
+  bindItemPointerEvents(it);
+  return it;
 }
 
 function ringToggle(ring) {
@@ -1635,8 +1691,18 @@ async function startCam(deviceId) {
     }
     if (!stream) throw e;
   }
+  cam.muted = true;
+  cam.playsInline = true;
   cam.srcObject = stream;
-  await new Promise(r => cam.onloadedmetadata = r);
+  await new Promise(r => {
+    if (cam.readyState >= 1) r();
+    else cam.onloadedmetadata = r;
+  });
+  try {
+    await cam.play();
+  } catch (playErr) {
+    console.warn("cam.play catch:", playErr);
+  }
   camDevices = (await navigator.mediaDevices.enumerateDevices())
     .filter(d => d.kind === "videoinput");
   const live = stream.getVideoTracks()[0];
@@ -1681,6 +1747,47 @@ function pauseCam() {
   }
 }
 
+async function initTracker() {
+  if (landmarker) return landmarker;
+  try {
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    landmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+        delegate: "GPU"
+      },
+      numHands: 2,
+      runningMode: "VIDEO",
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5
+    });
+    toast("hand tracker ready");
+    return landmarker;
+  } catch (gpuErr) {
+    console.warn("GPU tracker failed, falling back to CPU:", gpuErr);
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+          delegate: "CPU"
+        },
+        numHands: 2,
+        runningMode: "VIDEO",
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5
+      });
+      toast("hand tracker ready (CPU)");
+      return landmarker;
+    } catch (cpuErr) {
+      console.error("Tracker init failed:", cpuErr);
+      toast("tracker error: " + cpuErr.message);
+    }
+  }
+}
+
 async function resumeCam() {
   cameraPaused = false;
   lastVideoTs = -1;
@@ -1692,6 +1799,10 @@ async function resumeCam() {
     await pickInitialCam();
   } catch (e) {
     console.warn("Error resuming camera:", e);
+    toast("camera error: " + (e.message || "access denied"));
+  }
+  if (!landmarker) {
+    await initTracker();
   }
 }
 
@@ -1819,7 +1930,8 @@ addEventListener("keydown", e => {
 });
 
 function toScreen(lm) {
-  const vw = cam.videoWidth, vh = cam.videoHeight;
+  const vw = (cam && cam.videoWidth) ? cam.videoWidth : (innerWidth || 1920);
+  const vh = (cam && cam.videoHeight) ? cam.videoHeight : (innerHeight || 1080);
   const scale = Math.max(innerWidth / vw, innerHeight / vh);
   const dw = vw * scale, dh = vh * scale;
   const ox = (innerWidth - dw) / 2, oy = (innerHeight - dh) / 2;
@@ -2236,34 +2348,9 @@ async function boot() {
   if (!isEmbedded) {
     try {
       await pickInitialCam();
+      await initTracker();
     } catch (camErr) {
       console.warn("Camera init deferred/warning:", camErr);
-    }
-  }
-  try {
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
-    landmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-        delegate: "GPU" },
-      numHands: 2, runningMode: "VIDEO",
-      minHandDetectionConfidence: 0.7,
-      minHandPresenceConfidence: 0.5 });
-  } catch (visionErr) {
-    console.warn("Vision task resolver (GPU) failed, trying CPU:", visionErr);
-    try {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
-      landmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath:
-          "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "CPU" },
-        numHands: 2, runningMode: "VIDEO",
-        minHandDetectionConfidence: 0.7,
-        minHandPresenceConfidence: 0.5 });
-    } catch (cpuErr) {
-      console.warn("Vision task resolver (CPU) error:", cpuErr);
     }
   }
   const bootEl = document.getElementById("boot");
@@ -2286,7 +2373,10 @@ async function boot() {
       requestAnimationFrame(frame);
       return;
     }
-    if (landmarker && cam.currentTime !== lastVideoTs) {
+    if (cam.paused) {
+      cam.play().catch(() => {});
+    }
+    if (landmarker && (cam.currentTime !== lastVideoTs || lastVideoTs === -1)) {
       lastVideoTs = cam.currentTime;
       let res = null;
       try {

@@ -549,6 +549,7 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
     t0 = time.time()
     first = True
     batch: list[str] = []
+    full_reply_parts: list[str] = []
 
     def emit(raw: str):
         nonlocal first, batch
@@ -557,6 +558,7 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
         s = raw.replace("`", "").replace("<<", "").replace(">>", "").strip()
         if not s:
             return
+        full_reply_parts.append(s)
         if first:
             log(f"[{NAME}] ({time.time()-t0:.1f}s to first) {s}")
             mouth.say_chunk(s)
@@ -573,6 +575,8 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
             emit(sentence)
         if batch:
             mouth.say_chunk(" ".join(batch))
+        if full_reply_parts:
+            signals.append_chat("assistant", " ".join(full_reply_parts))
         if first:
             # Zero sentences yielded (brain error / empty turn): nothing
             # will ever dequeue, so nothing resets the bus — park it here.
@@ -873,6 +877,7 @@ async def amain():
         if verb:
             await run_console(verb)
             return True
+        signals.append_chat("user", text)
         signals.set_state("thinking")
         signals.static_start()
         # Clean the pipe: drain the interrupted turn's leftovers so the
@@ -949,7 +954,7 @@ async def amain():
                     mic_fut = loop.run_in_executor(
                         None, lambda g=g: (g, ears.listen_once(
                             gate=mic_gate,
-                            abort=lambda: _MIC["gen"] != g)))
+                            abort=lambda: _MIC["gen"] != g or _MIC["btn"])))
                 waiters.add(mic_fut)
             done, _ = await asyncio.wait(
                 waiters, timeout=0.5, return_when=asyncio.FIRST_COMPLETED)

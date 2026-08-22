@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "content": "Hello.",
+    "ts": 1787394948.2267997
+  },
+  {
+    "role": "assistant",
+    "content": "Good morning! How can I assist you today?",
+    "ts": 1787394948.801595
+  },
+  {
+    "role": "user",
+    "content": "Hi, rosette.",
+    "ts": 1787394980.1468868
+  },
+  {
+    "role": "assistant",
+    "content": "Hello! Is that supposed to be for me? I'm JARVIS. How can I help?",
+    "ts": 1787394981.2556882
+  },
+  {
+    "role": "user",
+    "content": "How low? What time is it?",
+    "ts": 1787395006.648016
+  },
+  {
+    "role": "assistant",
+    "content": "It's Saturday, August 22, 2026 at 6:35 AM. For effort settings, you can say \"set effort to low,\" \"medium,\" \"high,\" or \"max.\"",
+    "ts": 1787395008.9994888
+  }
+]

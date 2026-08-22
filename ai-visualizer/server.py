@@ -39,6 +39,22 @@ except ImportError:
 STATES = {"idle", "listening", "thinking", "speaking"}
 WAVEFORM_STALE_S = 0.6
 
+# Whisper STT model for browser audio transcription
+WHISPER_MODEL = None
+WHISPER_LOCK = threading.Lock()
+
+def get_whisper():
+    global WHISPER_MODEL
+    with WHISPER_LOCK:
+        if WHISPER_MODEL is None:
+            try:
+                from faster_whisper import WhisperModel
+                WHISPER_MODEL = WhisperModel("small.en", device="cpu", compute_type="int8")
+            except Exception as e:
+                print(f"[stt] Warning: could not load faster_whisper: {e}")
+                WHISPER_MODEL = False
+        return WHISPER_MODEL
+
 DEFAULTS = {
     "name": "JARVIS",
     "badge": "LOCAL-AI",
@@ -154,11 +170,42 @@ def list_faces():
 
 def read_bus():
     now = time.time()
-    if now - WEB_STATE["last_update"] < 1.5 and WEB_STATE["state"] in ("speaking", "thinking", "listening"):
-        t = now
-        samples = [0.0] * 64
+
+    # 1. Check physical Voice Bus files first
+    state = "idle"
+    level = 0.0
+    samples = [0.0] * 64
+    loading = False
+
+    try:
+        if (BUS / ".voice_state").exists():
+            state = (BUS / ".voice_state").read_text(encoding="utf-8").strip().lower()
+            if state not in STATES:
+                state = "idle"
+    except OSError:
+        pass
+
+    try:
+        if (BUS / ".voice_waveform").exists():
+            payload = json.loads((BUS / ".voice_waveform").read_text(encoding="utf-8"))
+            age = now - float(payload.get("ts", 0))
+            raw = payload.get("samples") or []
+            if raw and age < WAVEFORM_STALE_S:
+                state = "speaking"
+                samples = [float(s) for s in raw[:64]]
+                mean = sum(abs(s) for s in samples) / len(samples)
+                level = min(1.0, mean / 3000.0)
+    except Exception:
+        pass
+
+    loading = (BUS / ".voice_loading_pid").exists() if BUS.exists() else False
+
+    # 2. Check Web simulation state if bus is idle and web has active state
+    if state == "idle" and now - WEB_STATE["last_update"] < 2.5 and WEB_STATE["state"] in ("speaking", "thinking", "listening"):
+        state = WEB_STATE["state"]
         level = WEB_STATE["level"]
-        if WEB_STATE["state"] == "speaking":
+        t = now
+        if state == "speaking":
             if level <= 0.0:
                 level = 0.5 + 0.3 * math.sin(t * 8.0)
             samples = [
@@ -166,37 +213,16 @@ def read_bus():
                 * 9000.0 * (0.35 + 0.65 * abs(math.sin(t * 2.6)))
                 for i in range(64)
             ]
-        return {
-            "state": WEB_STATE["state"],
-            "level": level,
-            "samples": samples,
-            "alert": False,
-            "loading": WEB_STATE["state"] == "thinking"
-        }
+        elif state == "listening":
+            level = 0.4 + 0.2 * math.sin(t * 12.0)
+            samples = [(math.sin(i * 0.8 + t * 14.0) * 4000.0) for i in range(64)]
+        loading = state == "thinking"
 
-    state = "idle"
-    try:
-        state = (BUS / ".voice_state").read_text(encoding="utf-8").strip().lower()
-        if state not in STATES:
-            state = "idle"
-    except OSError:
-        pass
+    # Fill synthesized samples for active states if bus has no waveform
+    if state == "listening" and all(s == 0.0 for s in samples):
+        level = 0.4 + 0.2 * math.sin(now * 12.0)
+        samples = [(math.sin(i * 0.8 + now * 14.0) * 4000.0) for i in range(64)]
 
-    level = 0.0
-    samples = [0.0] * 64
-    try:
-        payload = json.loads((BUS / ".voice_waveform").read_text(encoding="utf-8"))
-        age = time.time() - float(payload.get("ts", 0))
-        raw = payload.get("samples") or []
-        if raw and age < WAVEFORM_STALE_S:
-            state = "speaking"
-            samples = [float(s) for s in raw[:64]]
-            mean = sum(abs(s) for s in samples) / len(samples)
-            level = min(1.0, mean / 3000.0)
-    except Exception:
-        pass
-
-    loading = (BUS / ".voice_loading_pid").exists() if BUS.exists() else False
     return {"state": state, "level": level, "samples": samples, "alert": False, "loading": loading}
 
 # Conversation history for web chat
@@ -294,6 +320,15 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 name = urllib.parse.unquote(query)
                 content = vault.read_note(name) if vault else ""
                 self._send_json({"name": name, "content": content})
+            elif url_path == "/api/history":
+                hist_file = BUS / ".voice_history.json"
+                history = []
+                if hist_file.exists():
+                    try:
+                        history = json.loads(hist_file.read_text(encoding="utf-8"))
+                    except Exception:
+                        history = []
+                self._send_json({"history": history})
             else:
                 self._static(url_path)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
@@ -308,8 +343,26 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         url_path = self.path.split("?")[0]
         try:
             length = int(self.headers.get("Content-Length", 0))
-            body_raw = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
-            data = json.loads(body_raw) if body_raw else {}
+            raw_bytes = self.rfile.read(length) if length > 0 else b""
+
+            if url_path == "/api/transcribe":
+                model = get_whisper()
+                if not model:
+                    self._send_json({"error": "Whisper STT model not available", "text": ""}, 500)
+                    return
+                try:
+                    import io
+                    segments, info = model.transcribe(io.BytesIO(raw_bytes), language="en")
+                    text = "".join(s.text for s in segments).strip()
+                    self._send_json({"text": text, "status": "ok"})
+                except Exception as e:
+                    self._send_json({"error": str(e), "text": ""}, 500)
+                return
+
+            try:
+                data = json.loads(raw_bytes.decode("utf-8")) if raw_bytes else {}
+            except Exception:
+                data = {}
 
             if url_path == "/api/config":
                 updated = save_config(data)
@@ -326,6 +379,11 @@ class UnifiedHandler(BaseHTTPRequestHandler):
 
             elif url_path == "/api/chat":
                 self._handle_chat_stream(data)
+
+            elif url_path == "/api/state":
+                new_st = (data.get("state") or "idle").lower()
+                set_web_state(new_st, level=data.get("level", 0.0))
+                self._send_json({"status": "ok", "state": new_st})
 
             elif url_path == "/api/clear":
                 global CHAT_HISTORY
@@ -575,12 +633,13 @@ def create_server(host, port, max_retries=10):
                 raise e
 
 if __name__ == "__main__":
+    # Pre-warm Whisper STT in background thread so transcriptions are instant
+    threading.Thread(target=get_whisper, daemon=True).start()
     url = f"http://127.0.0.1:{PORT}/"
-    srv = create_server("0.0.0.0", PORT)
-    print(f"Unified Agent Server running on {url} (Ollama Backend) - Ctrl-C to stop", flush=True)
-    if "--no-open" not in sys.argv:
-        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    httpd = create_server("127.0.0.1", PORT)
+    print(f"Unified Agent Server running on {url} (Ollama Backend) - Ctrl-C to stop")
     try:
-        srv.serve_forever()
+        httpd.serve_forever()
     except KeyboardInterrupt:
-        pass
+        print("\nShutting down server...")
+        httpd.shutdown()

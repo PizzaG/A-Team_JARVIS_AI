@@ -42,12 +42,14 @@ import time
 
 import numpy as np
 
+from pathlib import Path
 from backtalk.config import CFG
 
-_DIR = CFG["signals_dir"]
+_DIR = CFG.get("signals_dir") or str(Path(__file__).resolve().parent.parent)
 _STATE_FILE = os.path.join(_DIR, ".voice_state")
 _WAVEFORM_FILE = os.path.join(_DIR, ".voice_waveform")
 _LOADING_PID_FILE = os.path.join(_DIR, ".voice_loading_pid")
+_HISTORY_FILE = os.path.join(_DIR, ".voice_history.json")
 
 _BH = CFG.get("barehands_state_dir") or ""
 _BH_STATE = os.path.join(_BH, "state") if _BH else ""
@@ -58,6 +60,27 @@ _THINKING_SOUND = CFG.get("thinking_sound") or ""
 _WAVEFORM_MIN_INTERVAL = 1.0 / 15   # ~15 writes/sec is plenty for 60fps reads
 _last_waveform_write = 0.0
 _static_proc: subprocess.Popen | None = None
+
+
+def append_chat(role: str, text: str):
+    """Append a message to the shared voice history file."""
+    if not text:
+        return
+    try:
+        hist = []
+        if os.path.exists(_HISTORY_FILE):
+            try:
+                with open(_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    hist = json.load(f)
+            except Exception:
+                hist = []
+        hist.append({"role": role, "content": text, "ts": time.time()})
+        if len(hist) > 50:
+            hist = hist[-50:]
+        with open(_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(hist, f, indent=2)
+    except Exception:
+        pass
 
 
 def set_state(name: str):

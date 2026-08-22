@@ -3133,13 +3133,6 @@ async function boot() {
         // only listens to prayer-vertical hands (Jared's rule)
         const handUp = span > 0 ? (W0.y - M9.y) / span : 0;
 
-        // Head-rest & inverted hand suppression
-        const isHeadRest = (W0.y < 0.28 && handUp < 0.25) || (W0.y < 0.16) || (handUp < -0.30);
-        if (isHeadRest) {
-          dropCursor(i);
-          return;
-        }
-
         // 3D vector segment angle helper
         const seg = (a, b) => {
           const dx = lms[b].x - lms[a].x, dy = lms[b].y - lms[a].y,
@@ -3163,12 +3156,19 @@ async function boot() {
         const extFingers = extArr.filter(Boolean).length;
         const holdingI = items.some(k => k.grabbedBy.includes(i));
 
-        // Parked Hand / Chin & Cheek Rest / Closed Fist Suppression:
-        // When resting chin/cheek on hand or holding a closed resting fist,
-        // no fingers are extended (extFingers === 0 or index curl c8 < 0.25)
-        // and hand is not actively holding an item.
-        const isRestingHand = !holdingI && (extFingers === 0 || (extFingers <= 1 && c8 < 0.25 && c12 < 0.25));
-        if (isRestingHand) {
+        const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
+        const ratio = span > 0 ? gap / span : 1;
+
+        // Fingertip clustering detection (scratching comb / claw):
+        const d8_12 = Math.hypot(lms[8].x - lms[12].x, lms[8].y - lms[12].y);
+        const d12_16 = Math.hypot(lms[12].x - lms[16].x, lms[12].y - lms[16].y);
+        const isClawCluster = (d8_12 < span * 0.35) && (d12_16 < span * 0.35);
+
+        // Head scratch & resting fist suppression:
+        const isHangingDown = (W0.y < 0.08) || (handUp < -0.35);
+        const isClosedFistRest = !holdingI && (extFingers === 0 && c8 < 0.18 && c12 < 0.18);
+
+        if (isHangingDown || isClosedFistRest) {
           dropCursor(i);
           return;
         }
@@ -3180,8 +3180,6 @@ async function boot() {
         const _w = toScreen(W0), _m = toScreen(M9);
         cur.wristX = _w.x; cur.wristY = _w.y;   // v3.9.7: the prayer read
         cur.mcpX = _m.x; cur.mcpY = _m.y;
-        const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
-        const ratio = span > 0 ? gap / span : 1;
         const px = (tip.x + thumb.x) / 2, py = (tip.y + thumb.y) / 2;
         cur.x += (px - cur.x) * 0.80; cur.y += (py - cur.y) * 0.80;
         cur.history.push({ x: cur.x, y: cur.y, t: now });
@@ -3202,7 +3200,12 @@ async function boot() {
         const handGarbage = aspect > 7.5;
         if (handGarbage) cur.probKill = true;
 
-        const pinched = !handGarbage && (wasPinched
+        // Head scratch pinch suppression:
+        // Scratching head with clustered fingers near head height (W0.y < 0.40) must never trigger a pinch click/grab
+        const isHeadScratching = (W0.y < 0.40) && (isClawCluster || (c8 < 0.22 && c12 < 0.22));
+        const canPinch = !isHeadScratching || holdingI;
+
+        const pinched = !handGarbage && canPinch && (wasPinched
           ? !openRead
           : (ratio <= 0.40 || holdingI));
 

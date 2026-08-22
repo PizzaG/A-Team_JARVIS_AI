@@ -583,10 +583,39 @@ function makeImage(src, title) {
   const vid = /\.webm(\?|$)/i.test(src);
   const el = document.createElement("div");
   el.className = "card imgcard" + (fx || vid ? " fxcard" : "");
-  el.innerHTML = vid
-    ? `<video src="${escT(src)}" autoplay loop muted playsinline style="display:block;max-width:54vw;max-height:64vh;border-radius:10px;"></video>`
-    : `<img src="${escT(src)}" alt="${escT(title || '')}">` +
-      `<div class="imgtitle" style="margin-top:10px;font-size:12px;color:#8ff0e4;font-family:monospace;text-align:center;letter-spacing:0.06em;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${escT(title || '')}</div>`;
+  
+  if (vid) {
+    el.innerHTML = `<video src="${escT(src)}" autoplay loop muted playsinline style="display:block;max-width:54vw;max-height:64vh;border-radius:10px;"></video>`;
+  } else {
+    const spinner = document.createElement("div");
+    spinner.className = "img-spinner";
+    spinner.style.cssText = "padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;";
+    spinner.innerHTML = `<div style="font-size:32px;margin-bottom:10px;">🖼️</div>Loading ${escT(title || 'image')}...`;
+    
+    const img = document.createElement("img");
+    img.style.cssText = "display:none;max-width:54vw;max-height:64vh;object-fit:contain;border-radius:10px;";
+    img.alt = "";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "imgtitle";
+    titleEl.style.cssText = "margin-top:10px;font-size:12px;color:#8ff0e4;font-family:monospace;text-align:center;letter-spacing:0.06em;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;";
+    titleEl.textContent = title || "";
+
+    el.appendChild(spinner);
+    el.appendChild(img);
+    el.appendChild(titleEl);
+
+    img.onload = () => {
+      spinner.remove();
+      img.style.display = "block";
+    };
+    img.onerror = () => {
+      spinner.innerHTML = `<div style="color:#ff8888;padding:20px;">(Could not load "${escT(title)}")</div>`;
+    };
+    
+    img.src = src;
+  }
+
   BEHIND.appendChild(el);
   el.classList.add("mat");
   setTimeout(() => el.classList.remove("mat"), 650);
@@ -628,13 +657,18 @@ const RING = {
           thinking: [170, 245, 250], speaking: [140, 235, 240] },
   MOODT: { red: [255, 82, 82], amber: [255, 179, 71], green: null },
 };
+let ringPolling = false;
 setInterval(async () => {
-  if (!RING.live) return;               // poll only while a ring is up
+  if (!RING.live || ringPolling) return;
+  ringPolling = true;
   try {
     const r = await fetch("/orb", { cache: "no-store" });
     if (r.ok) RING.data = await r.json();
   } catch (e) {}
-}, 120);
+  finally {
+    ringPolling = false;
+  }
+}, 300);
 
 function ringAmp() {
   // the preserved aura pulse math: RMS+peak blend, auto-gain against a
@@ -3353,9 +3387,11 @@ async function boot() {
 // and OBS canvas sizes may differ.
 
 let lastPush = 0;
+let pushInFlight = false;
 function pushState(now) {
-  if (now - lastPush < 22) return;
+  if (pushInFlight || now - lastPush < 150) return;
   lastPush = now;
+  pushInFlight = true;
   const st = {
     cursors: Object.keys(cursors).sort().map(k => {
       const c = cursors[k];
@@ -3407,7 +3443,8 @@ function pushState(now) {
     }),
   };
   fetch("/state", { method: "POST", body: JSON.stringify(st) })
-    .then(r => r.json()).then(applyCmds).catch(() => {});
+    .then(r => r.json()).then(applyCmds).catch(() => {})
+    .finally(() => { pushInFlight = false; });
 }
 
 // (an earlier whole-screen voice-pulse aura was removed — THE RING

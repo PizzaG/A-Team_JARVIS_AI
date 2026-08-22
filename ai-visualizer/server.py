@@ -912,7 +912,10 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         try:
             self.send_response(code)
             self.send_header("Content-Type", ctype)
-            self.send_header("Cache-Control", "no-store")
+            if ctype.startswith("image/") or ctype.startswith("video/") or ctype.startswith("audio/") or ctype.startswith("model/"):
+                self.send_header("Cache-Control", "public, max-age=86400")
+            else:
+                self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -926,7 +929,7 @@ class ReusableThreadingHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-def create_server(host, port, max_retries=10):
+def create_server(host, port, max_retries=20):
     for attempt in range(max_retries):
         try:
             return ReusableThreadingHTTPServer((host, port), UnifiedHandler)
@@ -942,8 +945,16 @@ if __name__ == "__main__":
     url = f"http://127.0.0.1:{PORT}/"
     httpd = create_server("127.0.0.1", PORT)
     print(f"Unified Agent Server running on {url} (Ollama Backend) - Ctrl-C to stop")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\nShutting down server...")
-        httpd.shutdown()
+    while True:
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\nShutting down server...")
+            try:
+                httpd.shutdown()
+            except Exception:
+                pass
+            break
+        except Exception as e:
+            print(f"Server error, recovering: {e}")
+            time.sleep(0.5)

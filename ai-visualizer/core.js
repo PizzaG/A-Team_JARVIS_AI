@@ -93,13 +93,17 @@ const AV = (() => {
   /* ------------------------------ bus polling ------------------------------ */
   let raw = { state: "idle", level: 0, samples: null, alert: false,
               loading: false };
+  let stateInFlight = false;
   if (!DEMO) {
     setInterval(async () => {
+      if (stateInFlight) return;
+      stateInFlight = true;
       try {
         const r = await fetch("/state", { cache: "no-store" });
-        raw = await r.json();
+        if (r.ok) raw = await r.json();
       } catch (e) { /* server gone: hold last state */ }
-    }, 120);
+      finally { stateInFlight = false; }
+    }, 250);
   }
 
   /* ------------------------------ demo driver ------------------------------ */

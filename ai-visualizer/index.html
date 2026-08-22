@@ -800,22 +800,33 @@ document.getElementById("model-select").addEventListener("change", async (e) => 
 });
 
 // Poll state for UI overlay
+let indexStateInFlight = false;
 setInterval(async () => {
+  if (isPttHeld || isRecording || indexStateInFlight) return;
+  // If Barehands air board is open, let barehands manage state
+  const stageModal = document.getElementById("barehands-modal");
+  if (stageModal && stageModal.style.display !== "none") return;
+  
+  indexStateInFlight = true;
   try {
-    if (isPttHeld || isRecording) return;
     const res = await fetch("/state");
-    const st = await res.json();
-    const stateName = (st.state || "IDLE").toUpperCase();
-    const lbl = document.getElementById("face-state-label");
-    if (lbl) {
-      lbl.textContent = stateName;
-      if (stateName === "LISTENING") lbl.style.color = "var(--cyan)";
-      else if (stateName === "THINKING") lbl.style.color = "#bd93f9";
-      else if (stateName === "SPEAKING") lbl.style.color = "var(--green)";
-      else lbl.style.color = "var(--green)";
+    if (res.ok) {
+      const st = await res.json();
+      const stateName = (st.state || "IDLE").toUpperCase();
+      const lbl = document.getElementById("face-state-label");
+      if (lbl) {
+        lbl.textContent = stateName;
+        if (stateName === "LISTENING") lbl.style.color = "var(--cyan)";
+        else if (stateName === "THINKING") lbl.style.color = "#bd93f9";
+        else if (stateName === "SPEAKING") lbl.style.color = "var(--green)";
+        else lbl.style.color = "var(--green)";
+      }
     }
   } catch(e) {}
-}, 250);
+  finally {
+    indexStateInFlight = false;
+  }
+}, 300);
 
 // Poll conversation history from voice line
 let seenHistoryCount = 0;

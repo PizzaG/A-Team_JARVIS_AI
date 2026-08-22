@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+logs/
+.voice_state
+.voice_waveform
+.voice_loading_pid
+uv.lock
+backtalk.egg-info/
+# your personal config, created at setup: never tracked, never touched by updates
+backtalk.json

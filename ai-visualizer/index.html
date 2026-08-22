@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<!--
+ai-visualizer & Unified Local AI Agent Dashboard
+Copyright (C) 2026 Jared Rhodenizer, local AI edition.
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS - Local Fullstack Agent</title>
+<style>
+  :root {
+    --bg: #030806;
+    --card: #06140e;
+    --card-border: #0e2b1d;
+    --ink: #e6f4ed;
+    --dim: #607b70;
+    --green: #3ddc84;
+    --cyan: #00f0ff;
+    --amber: #e7c368;
+    --red: #ff5252;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Top Navigation Bar */
+  header {
+    height: 56px;
+    background: rgba(4, 16, 11, 0.95);
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    letter-spacing: 0.25em;
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: 0 0 12px rgba(61, 220, 132, 0.4);
+  }
+  .status-pill {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: rgba(61, 220, 132, 0.12);
+    border: 1px solid var(--green);
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .select-box {
+    background: #04100a;
+    border: 1px solid var(--card-border);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+  .select-box:focus { border-color: var(--green); }
+
+  .nav-tabs {
+    display: flex;
+    gap: 6px;
+  }
+  .tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active {
+    background: rgba(61, 220, 132, 0.1);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  /* Main Container */
+  main {
+    flex: 1;
+    display: flex;
+    height: calc(100vh - 56px);
+    position: relative;
+  }
+
+  /* View: Dashboard (Visualizer + Chat) */
+  #view-dashboard {
+    flex: 1;
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 3D Visualizer Face Viewport */
+  .face-pane {
+    flex: 1.1;
+    background: #000;
+    border-right: 1px solid var(--card-border);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .face-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  .face-overlay {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(4, 16, 11, 0.85);
+    border: 1px solid var(--card-border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    pointer-events: none;
+  }
+  .face-overlay b { color: var(--green); }
+
+  /* Chat Terminal Pane */
+  .chat-pane {
+    flex: 0.9;
+    display: flex;
+    flex-direction: column;
+    background: #020a06;
+    height: 100%;
+  }
+  .chat-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+  }
+  .chat-clear-btn {
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .chat-clear-btn:hover { color: var(--amber); border-color: var(--amber); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 90%;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+    word-break: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #0d281a;
+    border: 1px solid #1a4a32;
+    color: #e6fcf0;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: #05140d;
+    border: 1px solid var(--card-border);
+    color: var(--ink);
+  }
+  .msg .speaker {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .msg.assistant .speaker { color: var(--green); }
+
+  /* Tool execution card */
+  .tool-card {
+    align-self: stretch;
+    background: rgba(0, 240, 255, 0.05);
+    border: 1px dashed var(--cyan);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 11px;
+    margin: 4px 0;
+  }
+  .tool-card .t-head {
+    color: var(--cyan);
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .tool-card .t-body {
+    background: rgba(0,0,0,0.5);
+    padding: 8px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    max-height: 140px;
+    overflow-y: auto;
+    color: #a0d8e8;
+  }
+
+  /* Chat Input Area */
+  .chat-input-box {
+    padding: 14px;
+    border-top: 1px solid var(--card-border);
+    background: #030d08;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  textarea#user-input {
+    flex: 1;
+    background: #020705;
+    border: 1px solid var(--card-border);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    outline: none;
+    resize: none;
+    height: 44px;
+    line-height: 1.4;
+  }
+  textarea#user-input:focus { border-color: var(--green); }
+
+  .btn {
+    background: #092417;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 11px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 14px rgba(61, 220, 132, 0.4);
+  }
+  .btn.mic-btn {
+    border-color: var(--dim);
+    color: var(--dim);
+  }
+  .btn.mic-btn.active {
+    border-color: var(--red);
+    color: var(--red);
+    background: rgba(255, 82, 82, 0.1);
+    animation: pulse 1s infinite;
+  }
+
+  /* View: Memory Vault */
+  #view-vault, #view-settings {
+    flex: 1;
+    padding: 28px 40px;
+    overflow-y: auto;
+    display: none;
+    background: #020805;
+  }
+  .vault-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 20px;
+    height: calc(100vh - 120px);
+  }
+  .vault-sidebar {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vault-file-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .vault-file-btn:hover { color: var(--ink); background: rgba(255,255,255,0.03); }
+  .vault-file-btn.active {
+    background: rgba(61, 220, 132, 0.12);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .vault-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  textarea#vault-text {
+    flex: 1;
+    background: #04100a;
+    border: 1px solid var(--card-border);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 16px;
+    border-radius: 6px;
+    outline: none;
+    resize: none;
+  }
+
+  /* View: Settings */
+  .settings-card {
+    max-width: 680px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .settings-title {
+    font-size: 16px;
+    color: var(--green);
+    letter-spacing: 0.2em;
+    margin-bottom: 18px;
+  }
+  .form-group {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+  }
+  .form-input {
+    background: #020705;
+    border: 1px solid var(--card-border);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span id="header-name">JARVIS</span>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="header-status">OLLAMA LOCAL</span>
+    </div>
+  </div>
+
+  <div class="header-controls">
+    <select id="model-select" class="select-box" title="Select Local Ollama Model">
+      <option value="qwen2.5-coder:14b">qwen2.5-coder:14b</option>
+    </select>
+
+    <select id="face-select" class="select-box" title="Switch 3D Visualizer Face">
+      <option value="board">Face: Circuit Board</option>
+      <option value="neural">Face: Neural Core</option>
+      <option value="radial">Face: Radial Orb</option>
+      <option value="rain">Face: Matrix Code</option>
+    </select>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="showTab('dashboard')">TERMINAL & FACE</button>
+      <button class="tab-btn" onclick="showTab('vault')">MEMORY VAULT</button>
+      <button class="tab-btn" onclick="showTab('settings')">SETTINGS</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- VIEW 1: DASHBOARD (VISUALIZER + CHAT) -->
+  <div id="view-dashboard">
+    <div class="face-pane">
+      <iframe id="face-frame" class="face-frame" src="faces/board/index.html"></iframe>
+      <div class="face-overlay">
+        STATE: <b id="face-state-label">IDLE</b> | PRESS <b id="talk-key-label">HOME</b> TO TALK
+      </div>
+    </div>
+
+    <div class="chat-pane">
+      <div class="chat-header">
+        <span>INTERACTIVE AGENT TERMINAL</span>
+        <button class="chat-clear-btn" onclick="clearChat()">CLEAR</button>
+      </div>
+
+      <div class="chat-messages" id="chat-stream">
+        <div class="msg assistant">
+          <div class="speaker">JARVIS</div>
+          Hello! I am your local AI agent. I have full access to your memory vault and local tools. How can I assist you today?
+        </div>
+      </div>
+
+      <div class="chat-input-box">
+        <textarea id="user-input" placeholder="Type a message or command (Enter to send, Shift+Enter for newline)..." rows="1"></textarea>
+        <button class="btn mic-btn" id="mic-toggle-btn" title="Voice Input" onclick="toggleWebMic()">MIC</button>
+        <button class="btn" id="send-btn" onclick="sendMessage()">SEND</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 2: MEMORY VAULT -->
+  <div id="view-vault">
+    <div class="vault-layout">
+      <div class="vault-sidebar" id="vault-file-list">
+        <!-- Loaded dynamically -->
+      </div>
+      <div class="vault-editor">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--green); font-size:13px; letter-spacing:0.15em;" id="active-note-title">NOTE: SOUL.md</span>
+          <button class="btn" onclick="saveActiveNote()">SAVE NOTE</button>
+        </div>
+        <textarea id="vault-text" placeholder="Note content..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 3: SETTINGS -->
+  <div id="view-settings">
+    <div class="settings-card">
+      <div class="settings-title">AGENT CONFIGURATION</div>
+      <div class="form-group">
+        <label class="form-label">AGENT NAME</label>
+        <input type="text" class="form-input" id="cfg-name" value="JARVIS">
+      </div>
+      <div class="form-group">
+        <label class="form-label">OLLAMA BASE URL</label>
+        <input type="text" class="form-input" id="cfg-ollama-url" value="http://127.0.0.1:11434">
+      </div>
+      <div class="form-group">
+        <label class="form-label">DEFAULT MODEL</label>
+        <select class="form-input select-box" id="cfg-model-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">TOOL PERMISSION MODE</label>
+        <select class="form-input select-box" id="cfg-perm-mode">
+          <option value="ask">Ask for confirmation before file edits & commands</option>
+          <option value="bypassPermissions">Auto-approve all tool actions</option>
+        </select>
+      </div>
+      <button class="btn" onclick="saveSettings()">SAVE SETTINGS</button>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+let activeNote = "SOUL.md";
+let recognition = null;
+let isRecording = false;
+
+// 1. Initialize Tabs & Config
+function showTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#view-dashboard, #view-vault, #view-settings").forEach(v => v.style.display = "none");
+
+  if (tab === "dashboard") {
+    document.getElementById("view-dashboard").style.display = "flex";
+    document.querySelectorAll(".tab-btn")[0].classList.add("active");
+  } else if (tab === "vault") {
+    document.getElementById("view-vault").style.display = "block";
+    document.querySelectorAll(".tab-btn")[1].classList.add("active");
+    loadVaultNotes();
+  } else if (tab === "settings") {
+    document.getElementById("view-settings").style.display = "block";
+    document.querySelectorAll(".tab-btn")[2].classList.add("active");
+    loadSettings();
+  }
+}
+
+// 2. Fetch Models and Config
+async function initApp() {
+  try {
+    const cfgRes = await fetch("/config");
+    const cfg = await cfgRes.json();
+    if (cfg.name) {
+      document.getElementById("header-name").textContent = cfg.name.toUpperCase();
+      document.getElementById("cfg-name").value = cfg.name;
+    }
+    if (cfg.face) {
+      document.getElementById("face-select").value = cfg.face;
+      document.getElementById("face-frame").src = `faces/${cfg.face}/index.html`;
+    }
+
+    const modRes = await fetch("/api/models");
+    const modData = await modRes.json();
+    const modelSelect = document.getElementById("model-select");
+    const cfgModelSelect = document.getElementById("cfg-model-select");
+    modelSelect.innerHTML = "";
+    cfgModelSelect.innerHTML = "";
+
+    (modData.models || ["qwen2.5-coder:14b"]).forEach(m => {
+      const opt1 = new Option(m, m, false, m === modData.current);
+      const opt2 = new Option(m, m, false, m === modData.current);
+      modelSelect.add(opt1);
+      cfgModelSelect.add(opt2);
+    });
+
+  } catch (e) {
+    console.error("Error loading config:", e);
+  }
+}
+
+// Face Switcher
+document.getElementById("face-select").addEventListener("change", (e) => {
+  document.getElementById("face-frame").src = `faces/${e.target.value}/index.html`;
+});
+
+// Model Switcher
+document.getElementById("model-select").addEventListener("change", async (e) => {
+  await fetch("/api/config", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ model: e.target.value })
+  });
+});
+
+// Poll state for UI overlay
+setInterval(async () => {
+  try {
+    const res = await fetch("/state");
+    const st = await res.json();
+    document.getElementById("face-state-label").textContent = (st.state || "IDLE").toUpperCase();
+  } catch(e) {}
+}, 500);
+
+// 3. Chat System & Streaming
+const chatStream = document.getElementById("chat-stream");
+const userInput = document.getElementById("user-input");
+
+userInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text) return;
+  userInput.value = "";
+
+  // Append user message
+  const userDiv = document.createElement("div");
+  userDiv.className = "msg user";
+  userDiv.innerHTML = `<div class="speaker">YOU</div>${escapeHtml(text)}`;
+  chatStream.appendChild(userDiv);
+  chatStream.scrollTop = chatStream.scrollHeight;
+
+  // Prepare assistant bubble
+  const asstDiv = document.createElement("div");
+  asstDiv.className = "msg assistant";
+  const name = document.getElementById("header-name").textContent;
+  asstDiv.innerHTML = `<div class="speaker">${name}</div><span class="content"></span>`;
+  chatStream.appendChild(asstDiv);
+  const contentSpan = asstDiv.querySelector(".content");
+
+  const model = document.getElementById("model-select").value;
+
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ message: text, model: model })
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const ev = JSON.parse(line.substring(6));
+
+        if (ev.type === "delta") {
+          contentSpan.textContent += ev.content;
+          chatStream.scrollTop = chatStream.scrollHeight;
+        } else if (ev.type === "tool_start") {
+          const tCard = document.createElement("div");
+          tCard.className = "tool-card";
+          tCard.innerHTML = `<div class="t-head">⚙️ EXECUTING: ${ev.tool}</div><div class="t-body">${JSON.stringify(ev.args, null, 2)}</div>`;
+          chatStream.insertBefore(tCard, asstDiv);
+          chatStream.scrollTop = chatStream.scrollHeight;
+        } else if (ev.type === "tool_end") {
+          const tCard = document.createElement("div");
+          tCard.className = "tool-card";
+          tCard.innerHTML = `<div class="t-head">✓ OUTPUT: ${ev.tool}</div><div class="t-body">${escapeHtml(ev.output)}</div>`;
+          chatStream.insertBefore(tCard, asstDiv);
+          chatStream.scrollTop = chatStream.scrollHeight;
+        }
+      }
+    }
+  } catch (e) {
+    contentSpan.textContent += `\n[Error: ${e.message}]`;
+  }
+}
+
+async function clearChat() {
+  await fetch("/api/clear", { method: "POST" });
+  chatStream.innerHTML = "";
+}
+
+function escapeHtml(str) {
+  return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// 4. Memory Vault Manager
+async function loadVaultNotes() {
+  try {
+    const res = await fetch("/api/memory");
+    const data = await res.json();
+    const list = document.getElementById("vault-file-list");
+    list.innerHTML = "";
+
+    data.notes.forEach(n => {
+      const btn = document.createElement("button");
+      btn.className = "vault-file-btn" + (n.name === activeNote ? " active" : "");
+      btn.textContent = `📄 ${n.name}`;
+      btn.onclick = () => selectNote(n.name);
+      list.appendChild(btn);
+    });
+
+    selectNote(activeNote);
+  } catch(e) {
+    console.error("Error loading notes:", e);
+  }
+}
+
+async function selectNote(name) {
+  activeNote = name;
+  document.querySelectorAll(".vault-file-btn").forEach(b => {
+    b.classList.toggle("active", b.textContent.includes(name));
+  });
+  document.getElementById("active-note-title").textContent = `NOTE: ${name}`;
+  const res = await fetch(`/api/memory/get?name=${encodeURIComponent(name)}`);
+  const data = await res.json();
+  document.getElementById("vault-text").value = data.content || "";
+}
+
+async function saveActiveNote() {
+  const content = document.getElementById("vault-text").value;
+  await fetch("/api/memory/save", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ name: activeNote, content: content })
+  });
+  alert(`Saved ${activeNote}`);
+}
+
+// 5. Settings Tab
+async function loadSettings() {
+  const cfgRes = await fetch("/config");
+  const cfg = await cfgRes.json();
+  document.getElementById("cfg-name").value = cfg.name || "JARVIS";
+  document.getElementById("cfg-perm-mode").value = cfg.permission_mode || "ask";
+}
+
+async function saveSettings() {
+  const name = document.getElementById("cfg-name").value.trim();
+  const model = document.getElementById("cfg-model-select").value;
+  const perm = document.getElementById("cfg-perm-mode").value;
+  const ollamaUrl = document.getElementById("cfg-ollama-url").value.trim();
+
+  await fetch("/api/config", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      name: name,
+      model: model,
+      permission_mode: perm,
+      ollama_url: ollamaUrl
+    })
+  });
+  document.getElementById("header-name").textContent = name.toUpperCase();
+  alert("Settings saved!");
+}
+
+// 6. Voice Input (Web Speech API)
+function toggleWebMic() {
+  const micBtn = document.getElementById("mic-toggle-btn");
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert("Speech recognition not supported in this browser. You can use the terminal push-to-talk voice line!");
+    return;
+  }
+
+  if (isRecording) {
+    recognition.stop();
+    isRecording = false;
+    micBtn.classList.remove("active");
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    micBtn.classList.add("active");
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    userInput.value = transcript;
+    sendMessage();
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    micBtn.classList.remove("active");
+  };
+
+  recognition.onerror = () => {
+    isRecording = false;
+    micBtn.classList.remove("active");
+  };
+
+  recognition.start();
+}
+
+window.addEventListener("DOMContentLoaded", initApp);
+</script>
+</body>
+</html>

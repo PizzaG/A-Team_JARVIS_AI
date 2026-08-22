@@ -1538,11 +1538,44 @@ function browserRows(b) {
 }
 
 function browserRowsHTML(tuples) {
-  const ICO = { dir0: "▸", dir1: "▾", note: "▤", prop: "▦", widget: "▣" };
-  return tuples.map(([d, t, k, o], i) =>
-    `<div class="brow ${k}" data-i="${i}" style="padding-left:${18 + d * 26}px">` +
-    `<span class="bico">${k === "dir" ? ICO["dir" + o] : ICO[k]}</span>` +
-    `<span class="btxt">${escT(t)}</span></div>`).join("");
+  const ICO = { dir0: "▸", dir1: "▾", note: "📄", img: "🖼️", doc: "📕", media: "🎵", prop: "▦", widget: "▣" };
+  return tuples.map(([d, t, k, o], i) => {
+    let ico = ICO.note;
+    if (k === "dir") ico = ICO["dir" + o];
+    else if (k === "prop") ico = ICO.prop;
+    else if (/\.(png|jpe?g|webp|gif|svg)$/i.test(t)) ico = ICO.img;
+    else if (/\.(pdf|docx?|pptx?|xlsx?|csv)$/i.test(t)) ico = ICO.doc;
+    else if (/\.(mp3|mp4|wav|m4a|webm|mov)$/i.test(t)) ico = ICO.media;
+
+    return `<div class="brow ${k}" data-i="${i}" style="padding-left:${18 + d * 26}px">` +
+      `<span class="bico">${ico}</span>` +
+      `<span class="btxt">${escT(t)}</span></div>`;
+  }).join("");
+}
+
+function handleFileSelect(row, b) {
+  const f = row.f || "";
+  const t = row.t || "";
+  const ext = f.split(".").pop().toLowerCase();
+
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) {
+    const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
+    const it = makeImage(src, t);
+    it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
+    it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+    items.push(it);
+    killItem(b);
+  } else if (["glb", "gltf"].includes(ext)) {
+    const src = row.k === "prop" ? "/media/" + f : "/note?f=" + encodeURIComponent(f);
+    const it = makeModel(src, t);
+    it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
+    it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
+    items.push(it);
+    killItem(b);
+  } else {
+    openPanel({ def: { file: f, title: t } });
+    killItem(b);
+  }
 }
 
 function browserRefresh(b) {
@@ -1566,16 +1599,8 @@ function browserRefresh(b) {
         if (b.expanded.has(row.key)) b.expanded.delete(row.key);
         else b.expanded.add(row.key);
         browserRefresh(b);
-      } else if (row.k === "note") {
-        openPanel({ def: { file: row.f, title: row.t } });
-        killItem(b);
-      } else if (row.k === "prop") {
-        const src = "/media/" + row.f;
-        const it = isModelSrc(src) ? makeModel(src, row.t) : makeImage(src, row.t);
-        it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
-        it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
-        items.push(it);
-        killItem(b);
+      } else {
+        handleFileSelect(row, b);
       }
     });
   });
@@ -1628,9 +1653,6 @@ function browserTap(b, cur) {
         cur.x >= r.left && cur.x <= r.right) {
       const row = b.rows[+rowEl.dataset.i];
       if (!row) return;
-      // the tap flash: mark it for both pages (dir taps re-render the
-      // rows, so the local flash applies AFTER the branch runs; the
-      // tapped dir keeps its index — children insert below it)
       b.flashI = +rowEl.dataset.i;
       b.flashV = (b.flashV || 0) + 1;
       setTimeout(() => flashRow(b.body, b.flashI), 0);
@@ -1638,18 +1660,8 @@ function browserTap(b, cur) {
         if (b.expanded.has(row.key)) b.expanded.delete(row.key);
         else b.expanded.add(row.key);
         browserRefresh(b);
-      } else if (row.k === "note") {
-        openPanel({ def: { file: row.f, title: row.t } });
-        killItem(b);   // v3.3 (his broadened rule): selecting ANYTHING
-                       // closes the whole pane — only dir taps keep it
-      } else if (row.k === "prop") {
-        const src = "/media/" + row.f;
-        const it = isModelSrc(src) ? makeModel(src, row.t)
-                                   : makeImage(src, row.t);
-        it.x = Math.min(b.x + 480, innerWidth - 240); it.y = b.y;
-        it.anim = { k: "in", t: 0 }; it.el.style.opacity = "0.05";
-        items.push(it);
-        killItem(b);   // v3.3: any selection closes the pane
+      } else {
+        handleFileSelect(row, b);
       }
       return;
     }

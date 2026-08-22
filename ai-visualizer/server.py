@@ -421,22 +421,21 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                     self._send_json({"name": "?", "notes": [], "dirs": []}, 404)
                     return
 
-                TEXT_EXTS = {".md", ".txt", ".json", ".py", ".js", ".html", ".css", ".ts", ".sh", ".bat", ".yaml", ".yml", ".toml", ".csv", ".log"}
                 SKIP_NAMES = {".git", "node_modules", "__pycache__", ".venv", "venv", "build", "dist", ".gemini", ".system_generated", "CLAUDE.md"}
 
                 def walk(d, depth=0):
-                    if depth > 4:
+                    if depth > 5:
                         return {"name": d.name, "notes": [], "dirs": []}
                     out = {"name": d.name, "notes": [], "dirs": []}
                     try:
-                        for p in sorted(d.iterdir()):
+                        for p in sorted(d.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
                             if p.name in SKIP_NAMES or p.name.startswith("."):
                                 continue
                             if p.is_dir():
                                 sub = walk(p, depth + 1)
                                 if sub["notes"] or sub["dirs"]:
                                     out["dirs"].append(sub)
-                            elif p.suffix.lower() in TEXT_EXTS:
+                            elif p.is_file():
                                 out["notes"].append({
                                     "title": p.name,
                                     "file": f"{int(idx)}/{p.relative_to(root).as_posix()}"

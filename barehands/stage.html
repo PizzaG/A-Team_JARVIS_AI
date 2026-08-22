@@ -287,9 +287,22 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     color: #fff; transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(0, 240, 255, 0.3);
   }
+  .pdf-page-canvas {
+    display:block; width:100%; max-width:800px; margin:0 auto 18px auto;
+    border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.6), 0 0 20px rgba(0,229,255,0.18);
+    transition:filter 0.3s ease, background 0.3s ease;
+  }
+  .pdf-page-canvas.hologram-mode {
+    filter: invert(0.90) hue-rotate(165deg) contrast(1.18) brightness(1.08);
+    mix-blend-mode: screen; background: transparent;
+  }
+  .pdf-page-canvas.paper-mode {
+    filter: none; mix-blend-mode: normal; background: #ffffff;
+  }
   body.overlay #desktop-exit-btn { display: none !important; }
   body.overlay #voice-hud, body.overlay #voice-modal { display: none !important; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -474,6 +487,17 @@ function bindItemPointerEvents(item) {
 
   item.el.addEventListener("pointerup", onPointerUp);
   item.el.addEventListener("pointercancel", onPointerUp);
+
+  if (item.type === "panel" || item.type === "browser") {
+    item.el.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      if (!item.body) return;
+      const box = item.body.parentElement ? item.body.parentElement.clientHeight : 600;
+      const maxS = Math.max(0, item.body.offsetHeight - box + 60);
+      item.scrollY = Math.min(maxS, Math.max(0, (item.scrollY || 0) + e.deltaY * 0.8));
+      item.body.style.transform = `translateY(${-item.scrollY}px)`;
+    }, { passive: false });
+  }
 }
 
 function makeCard(def) {
@@ -1679,9 +1703,74 @@ function renderNote(text) {
 
 const NOTE_CACHE = new Map();
 
+async function renderPdfDocument(p, filePath) {
+  const scrollContainer = p.el.querySelector(".scroll");
+  if (!scrollContainer) return;
+  
+  try {
+    if (!window.pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    if (window.pdfjsLib && !window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    scrollContainer.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.8;font-family:inherit;">Rendering Holographic Document...</div>`;
+
+    const pdf = await window.pdfjsLib.getDocument("/note?f=" + encodeURIComponent(filePath)).promise;
+    scrollContainer.innerHTML = "";
+
+    let isHologram = true;
+    const modeBtn = p.el.querySelector(".pdf-mode-toggle");
+    if (modeBtn) {
+      modeBtn.onclick = (e) => {
+        e.stopPropagation();
+        isHologram = !isHologram;
+        modeBtn.textContent = isHologram ? "🔮 Hologram" : "📄 Paper";
+        scrollContainer.querySelectorAll(".pdf-page-canvas").forEach(c => {
+          c.className = "pdf-page-canvas " + (isHologram ? "hologram-mode" : "paper-mode");
+        });
+      };
+    }
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.6 });
+      const pageWrapper = document.createElement("div");
+      pageWrapper.style.textAlign = "center";
+      pageWrapper.style.marginBottom = "18px";
+      
+      const canvas = document.createElement("canvas");
+      canvas.className = "pdf-page-canvas " + (isHologram ? "hologram-mode" : "paper-mode");
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      const ctx = canvas.getContext("2d");
+      
+      pageWrapper.appendChild(canvas);
+      scrollContainer.appendChild(pageWrapper);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+    }
+  } catch (err) {
+    if (scrollContainer) {
+      scrollContainer.innerHTML = `
+        <div style="padding:30px;text-align:center;">
+          <div style="color:#ff8888;margin-bottom:14px;font-size:14px;">(Could not render document canvas: ${escT(err.message || err)})</div>
+          <a href="/note?f=${encodeURIComponent(filePath)}" target="_blank" style="color:#00e5ff;font-size:13px;">Open in Browser Tab ↗</a>
+        </div>`;
+    }
+  }
+}
+
 async function openPanel(card) {
   const filePath = (card && card.def && card.def.file) || "";
   const title = (card && card.def && card.def.title) || filePath.split("/").pop().replace(/\.[^/.]+$/, "") || "Note";
+  const ext = filePath.split(".").pop().toLowerCase();
   
   const existing = items.find(i => i.type === "panel" && i.def && (i.def.file === filePath || (filePath && i.def.file && i.def.file.endsWith(filePath))));
   if (existing) {
@@ -1692,12 +1781,49 @@ async function openPanel(card) {
     return;
   }
 
-  const cached = NOTE_CACHE.get(filePath);
-  const initialHtml = cached ? renderNote(cached) : `<div class="loading-note" style="padding:24px;opacity:0.6;font-size:15px;letter-spacing:1px;">Loading ${escT(title)}...</div>`;
+  const isPdf = ext === "pdf";
+  const isAudio = ["mp3", "wav", "m4a", "ogg", "aac"].includes(ext);
+  const isVideo = ["mp4", "webm", "mov", "mkv"].includes(ext);
+  const isBinary = ["blend", "blend1", "zip", "7z", "rar", "tar", "gz", "exe", "msi", "doc", "docx", "pptx", "xlsx"].includes(ext);
+
+  let initialHtml = "";
+  let barActions = "";
+  if (isPdf) {
+    initialHtml = `<div style="padding:40px 20px;text-align:center;color:#8ff0e4;opacity:0.8;">Loading Document...</div>`;
+    barActions = `
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="pdf-mode-toggle" style="background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.5);color:#00e5ff;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:bold;">🔮 Hologram</button>
+        <a href="/note?f=${encodeURIComponent(filePath)}" target="_blank" style="color:#8ff0e4;font-size:11px;text-decoration:none;border:1px solid rgba(143,240,228,0.4);padding:3px 10px;border-radius:6px;background:rgba(10,30,30,0.6);">Open ↗</a>
+      </div>`;
+  } else if (isAudio) {
+    initialHtml = `
+      <div style="padding:60px 20px;text-align:center;">
+        <div style="font-size:54px;margin-bottom:20px;">🎵</div>
+        <div style="font-size:16px;font-weight:bold;margin-bottom:16px;color:#8ff0e4;">${escT(title)}</div>
+        <audio controls src="/note?f=${encodeURIComponent(filePath)}" style="width:90%;margin-bottom:20px;"></audio>
+        <div><a href="/note?f=${encodeURIComponent(filePath)}" target="_blank" style="color:#8ff0e4;font-size:12px;text-decoration:none;">Download Audio File ↗</a></div>
+      </div>`;
+  } else if (isVideo) {
+    initialHtml = `
+      <div style="padding:10px;text-align:center;display:flex;flex-direction:column;height:100%;">
+        <video controls src="/note?f=${encodeURIComponent(filePath)}" style="width:100%;max-height:540px;border-radius:10px;background:#000;"></video>
+      </div>`;
+  } else if (isBinary) {
+    initialHtml = `
+      <div style="padding:60px 20px;text-align:center;">
+        <div style="font-size:54px;margin-bottom:20px;">📦</div>
+        <div style="font-size:18px;font-weight:bold;margin-bottom:10px;color:#8ff0e4;">${escT(title)}</div>
+        <div style="opacity:0.7;font-size:13px;margin-bottom:24px;">Binary / Application File (.${ext.toUpperCase()})</div>
+        <a href="/note?f=${encodeURIComponent(filePath)}" download style="display:inline-block;background:rgba(0,229,255,0.2);border:1px solid #00e5ff;color:#00e5ff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:bold;letter-spacing:1px;">Download / Open File ↗</a>
+      </div>`;
+  } else {
+    const cached = NOTE_CACHE.get(filePath);
+    initialHtml = cached ? renderNote(cached) : `<div class="loading-note" style="padding:24px;opacity:0.6;font-size:15px;letter-spacing:1px;">Loading ${escT(title)}...</div>`;
+  }
 
   const el = document.createElement("div");
   el.className = "panel";
-  el.innerHTML = `<div class="bar"><h3>${escT(title)}</h3></div>` +
+  el.innerHTML = `<div class="bar"><h3>${escT(title)}</h3>${barActions}</div>` +
                  `<div class="body"><div class="scroll">${initialHtml}</div></div>`;
   BEHIND.appendChild(el);
   const p = { el, id: UID++, type: "panel", def: card.def, x: innerWidth * 0.5,
@@ -1709,7 +1835,9 @@ async function openPanel(card) {
   bindItemPointerEvents(p);
   items.push(p);
 
-  if (!cached && filePath) {
+  if (isPdf) {
+    renderPdfDocument(p, filePath);
+  } else if (!isAudio && !isVideo && !isBinary && !NOTE_CACHE.has(filePath) && filePath) {
     try {
       const r = await fetch("/note?f=" + encodeURIComponent(filePath));
       if (r.ok) {

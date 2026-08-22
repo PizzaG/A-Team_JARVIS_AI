@@ -507,8 +507,13 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                     self._send_text("Not found", 404)
                     return
                 try:
+                    mime_type, _ = mimetypes.guess_type(str(target))
+                    if not mime_type:
+                        mime_type = "text/plain; charset=utf-8"
+                    elif "text" in mime_type or target.suffix.lower() in {".md", ".json", ".py", ".js", ".ts", ".html", ".css", ".yaml", ".yml", ".toml", ".csv", ".log", ".ini", ".conf", ".env", ".bat", ".sh"}:
+                        mime_type += "; charset=utf-8"
                     body = target.read_bytes()
-                    self._send_bytes(body, "text/plain; charset=utf-8")
+                    self._send_bytes(body, mime_type)
                 except Exception as e:
                     self._send_text(f"Error reading file: {e}", 500)
             elif url_path == "/api/models":

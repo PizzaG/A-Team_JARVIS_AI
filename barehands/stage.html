@@ -103,114 +103,153 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       display:flex; flex-direction:column; align-items:center;
       justify-content:center; text-align:center; gap:2px; }
   .card.imgcard, .card.videocard {
-      padding:0; width:auto; max-width:62vw; overflow:visible;
-      min-width:280px; min-height:180px; display:flex; flex-direction:column;
-      background:linear-gradient(168deg, rgba(20,48,45,0.88), rgba(8,24,24,0.82));
-      border:1.5px solid rgba(111,229,214,0.65); border-radius:14px;
-      box-shadow:0 16px 60px rgba(0,0,0,0.7), 0 0 35px rgba(0,229,255,0.22),
-                 inset 0 1px 0 rgba(191,255,245,0.45); backdrop-filter:blur(18px); }
-  /* Holographic Corner Brackets */
-  .card.imgcard::before, .card.imgcard::after,
-  .card.videocard::before, .card.videocard::after,
-  .panel::before, .panel::after {
-    content:""; position:absolute; width:14px; height:14px;
-    pointer-events:none; border-color:#8ff0e4; border-style:solid; z-index:15;
-    filter:drop-shadow(0 0 5px #8ff0e4); }
-  .card.imgcard::before, .card.videocard::before, .panel::before {
-    top:-3px; left:-3px; border-width:2.5px 0 0 2.5px; border-top-left-radius:6px; }
-  .card.imgcard::after, .card.videocard::after, .panel::after {
-    bottom:-3px; right:-3px; border-width:0 2.5px 2.5px 0; border-bottom-right-radius:6px; }
-  .corner-tr { position:absolute; top:-3px; right:-3px; width:14px; height:14px;
-    border-top:2.5px solid #8ff0e4; border-right:2.5px solid #8ff0e4;
-    border-top-right-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
-  .corner-bl { position:absolute; bottom:-3px; left:-3px; width:14px; height:14px;
-    border-bottom:2.5px solid #8ff0e4; border-left:2.5px solid #8ff0e4;
-    border-bottom-left-radius:6px; pointer-events:none; z-index:15; filter:drop-shadow(0 0 5px #8ff0e4); }
+      position:absolute; width:auto; max-width:58vw; max-height:64vh;
+      padding:8px 8px 12px 8px; border-radius:20px;
+      display:flex; flex-direction:column; align-items:stretch;
+      background:linear-gradient(168deg, rgba(70,140,130,0.28), rgba(18,48,44,0.16));
+      border:1.5px solid rgba(140,240,225,0.55);
+      box-shadow:0 10px 44px rgba(0,0,0,0.40), 0 0 30px rgba(111,229,214,0.18),
+                 inset 0 1px 0 rgba(210,255,248,0.55),
+                 inset 0 -14px 30px rgba(111,229,214,0.05);
+      backdrop-filter:blur(20px);
+      color:#ecfffa; user-select:none; will-change:transform;
+      transform-origin:center center;
+      transition:box-shadow 0.3s ease, border-color 0.3s ease; }
+  .card.imgcard.grabbed, .card.videocard.grabbed {
+      border-color:#8ff0e4;
+      box-shadow:0 20px 60px rgba(0,0,0,0.55), 0 0 50px rgba(111,229,214,0.35),
+                 inset 0 1px 0 rgba(210,255,248,0.8); }
 
-  .media-header {
+  .spatial-ambient-glow {
+    position:absolute; inset:-24px; border-radius:32px;
+    background:radial-gradient(ellipse at center, rgba(0, 229, 255, 0.35) 0%, rgba(14, 165, 233, 0.14) 55%, transparent 75%);
+    filter:blur(36px); z-index:-2; pointer-events:none;
+    animation:ambientPulse 4s ease-in-out infinite alternate;
+  }
+  @keyframes ambientPulse {
+    0% { opacity:0.7; transform:scale(0.97); }
+    100% { opacity:1; transform:scale(1.03); }
+  }
+  .spatial-specular-sheen {
+    position:absolute; inset:0; border-radius:20px;
+    background:linear-gradient(125deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 28%, transparent 55%);
+    pointer-events:none; z-index:14;
+  }
+
+  .media-bar {
     display:flex; align-items:center; justify-content:space-between;
-    padding:8px 14px; background:rgba(10,24,28,0.75);
-    border-bottom:1px solid rgba(143,240,228,0.25);
-    border-top-left-radius:13px; border-top-right-radius:13px;
-    cursor:grab; user-select:none; }
-  .media-header:active { cursor:grabbing; }
-  .media-header .title {
-    font:bold 12px "SF Mono",Menlo,monospace; color:#8ff0e4; letter-spacing:0.08em;
-    display:flex; align-items:center; gap:8px; overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap; max-width:65%; }
-  .media-header .actions { display:flex; align-items:center; gap:8px; }
-  
-  .btn-hud {
-    background:rgba(143,240,228,0.12); border:1px solid rgba(143,240,228,0.4);
-    color:#8ff0e4; border-radius:12px; padding:3px 10px; font:11px "SF Mono",Menlo,monospace;
-    cursor:pointer; transition:all 0.2s ease; user-select:none; }
-  .btn-hud:hover {
-    background:rgba(143,240,228,0.28); border-color:#8ff0e4; color:#fff;
-    box-shadow:0 0 10px rgba(143,240,228,0.45); }
-  .btn-close {
-    background:rgba(255,80,80,0.15); border:1px solid rgba(255,100,100,0.4);
-    color:#ff8888; border-radius:50%; width:22px; height:22px;
-    display:flex; align-items:center; justify-content:center;
-    font-size:12px; cursor:pointer; transition:all 0.2s ease; user-select:none; }
-  .btn-close:hover {
-    background:rgba(255,80,80,0.38); color:#fff; box-shadow:0 0 10px rgba(255,80,80,0.5); }
+    padding:4px 8px 8px 8px; cursor:grab; }
+  .media-bar:active { cursor:grabbing; }
+  .media-bar h3 {
+    margin:0; font:700 12px/1 "SF Mono",Menlo,monospace; letter-spacing:0.08em;
+    color:#8ff0e4; text-transform:uppercase;
+    text-shadow:0 1px 3px rgba(2,14,12,0.95), 0 0 14px rgba(111,229,214,0.55); }
 
   .media-body {
     position:relative; width:100%; display:flex; align-items:center;
-    justify-content:center; overflow:hidden;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px; }
+    justify-content:center; overflow:hidden; border-radius:14px; }
   .media-body img {
-    display:block; max-width:56vw; max-height:62vh; min-width:200px;
-    object-fit:contain; border-bottom-left-radius:13px; border-bottom-right-radius:13px;
-    transition:filter 0.3s ease; }
-  .media-body img.holo-active, .video-container video.holo-active {
-    filter:invert(0.90) hue-rotate(165deg) contrast(1.22) brightness(1.10) drop-shadow(0 0 18px rgba(111,229,214,0.5)) !important;
-    mix-blend-mode:screen !important; }
+    display:block; max-width:100%; max-height:56vh;
+    object-fit:contain; border-radius:14px;
+    opacity:0.86;
+    transition:opacity 0.3s ease; }
 
-  /* Custom Video Player Styling */
+  /* Spatial Video Screen */
   .video-container {
-    position:relative; width:100%; background:#000; overflow:hidden;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
-    display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    position:relative; width:100%; display:flex; align-items:center;
+    justify-content:center; overflow:hidden; border-radius:14px; cursor:pointer; }
   .video-container video {
-    display:block; max-width:56vw; max-height:60vh;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
-    transition:filter 0.3s ease; }
+    display:block; max-width:100%; max-height:56vh;
+    border-radius:14px;
+    opacity:0.86;
+    transition:opacity 0.3s ease; }
+  .card.imgcard.grabbed .media-body img,
+  .card.videocard.grabbed .video-container video {
+    opacity:0.96; }
+  
+  .jarvis-scanlines {
+    position:absolute; inset:0; border-radius:14px;
+    background:linear-gradient(rgba(143,240,228,0.04) 50%, transparent 50%);
+    background-size:100% 4px; pointer-events:none; z-index:11; }
+
   .video-play-pulse {
     position:absolute; top:50%; left:50%;
-    transform:translate(-50%, -50%) scale(0.8);
+    transform:translate(-50%, -50%) scale(0.7);
     width:64px; height:64px; border-radius:50%;
-    background:rgba(8,20,24,0.8); border:2px solid #8ff0e4;
-    box-shadow:0 0 22px #8ff0e4; display:flex; align-items:center;
-    justify-content:center; color:#8ff0e4; font-size:28px;
+    background:linear-gradient(168deg, rgba(70,140,130,0.5), rgba(18,48,44,0.4));
+    border:1.5px solid #8ff0e4;
+    backdrop-filter:blur(16px);
+    box-shadow:0 0 30px rgba(143,240,228,0.7), inset 0 0 14px rgba(143,240,228,0.4);
+    display:flex; align-items:center; justify-content:center; color:#8ff0e4; font-size:26px;
     pointer-events:none; opacity:0;
-    transition:all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index:10; }
+    transition:all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index:12; }
   .video-play-pulse.active {
-    opacity:1; transform:translate(-50%, -50%) scale(1.1); }
+    opacity:1; transform:translate(-50%, -50%) scale(1.05); }
+
+  /* Floating Frosted Scrubber Island */
   .video-scrubber-bar {
-    position:absolute; bottom:0; left:0; right:0;
-    padding:10px 14px 8px 14px;
-    background:linear-gradient(0deg, rgba(6,16,20,0.88) 0%, rgba(6,16,20,0.45) 60%, transparent 100%);
-    display:flex; align-items:center; gap:12px;
-    border-bottom-left-radius:13px; border-bottom-right-radius:13px;
-    z-index:12; user-select:none; }
+    position:absolute; bottom:10px; left:14px; right:14px;
+    height:38px; padding:0 12px;
+    background:linear-gradient(168deg, rgba(70,140,130,0.40), rgba(18,48,44,0.30));
+    backdrop-filter:blur(24px) saturate(180%);
+    border:1.5px solid rgba(140,240,225,0.55); border-radius:19px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.45), 0 0 20px rgba(111,229,214,0.22);
+    display:flex; align-items:center; gap:10px;
+    z-index:13; user-select:none; }
+  .video-scrubber-bar .video-play-btn,
   .video-vol-btn {
-    color:#8ff0e4; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-    width:24px; height:24px; border-radius:4px; transition:all 0.2s ease; user-select:none; }
-  .video-vol-btn:hover { background:rgba(143,240,228,0.2); text-shadow:0 0 8px #8ff0e4; }
+    color:#ecfffa; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%; background:rgba(143,240,228,0.12);
+    border:1px solid rgba(143,240,228,0.35); transition:all 0.2s ease; user-select:none; }
+  .video-scrubber-bar .video-play-btn:hover,
+  .video-vol-btn:hover {
+    background:rgba(143,240,228,0.32); border-color:#8ff0e4; color:#fff;
+    box-shadow:0 0 12px rgba(143,240,228,0.6); transform:scale(1.08); }
   .video-scrub-track {
-    position:relative; flex:1; height:4px;
-    background:rgba(143,240,228,0.25); border-radius:2px;
-    cursor:pointer; transition:height 0.15s ease; }
-  .video-scrub-track:hover { height:6px; }
+    position:relative; flex:1; height:6px;
+    background:rgba(143,240,228,0.22); border-radius:3px;
+    cursor:pointer; transition:all 0.15s ease; }
+  .video-scrub-track:hover { height:8px; background:rgba(143,240,228,0.35); }
   .video-scrub-progress {
-    height:100%; background:#8ff0e4; border-radius:2px;
-    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.6);
+    position:relative; height:100%;
+    background:linear-gradient(90deg, #4edbc6, #a0fff2); border-radius:3px;
+    box-shadow:0 0 10px #8ff0e4, 0 0 20px rgba(0,229,255,0.6);
     width:0%; pointer-events:none; }
+  .video-scrub-progress::after {
+    content:""; position:absolute; right:-5px; top:50%; transform:translateY(-50%);
+    width:10px; height:10px; border-radius:50%; background:#ffffff;
+    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.8); }
   .video-time-tag {
-    font:11px "SF Mono",Menlo,monospace; color:#8ff0e4;
-    letter-spacing:0.05em; text-shadow:0 1px 4px rgba(0,0,0,0.9);
-    white-space:nowrap; opacity:0.9; }
+    font:600 11px "SF Mono",Menlo,monospace; color:#ecfffa;
+    letter-spacing:0.06em; text-shadow:0 1px 3px rgba(2,14,12,0.95), 0 0 10px rgba(111,229,214,0.5);
+    white-space:nowrap; opacity:0.95; }
+  .video-scrubber-bar .video-play-btn,
+  .video-vol-btn {
+    color:#ecfffa; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:50%; background:rgba(143,240,228,0.12);
+    border:1px solid rgba(143,240,228,0.35); transition:all 0.2s ease; user-select:none; }
+  .video-scrubber-bar .video-play-btn:hover,
+  .video-vol-btn:hover {
+    background:rgba(143,240,228,0.32); border-color:#8ff0e4; color:#fff;
+    box-shadow:0 0 12px rgba(143,240,228,0.6); transform:scale(1.08); }
+  .video-scrub-track {
+    position:relative; flex:1; height:6px;
+    background:rgba(143,240,228,0.22); border-radius:3px;
+    cursor:pointer; transition:all 0.15s ease; }
+  .video-scrub-track:hover { height:8px; background:rgba(143,240,228,0.35); }
+  .video-scrub-progress {
+    position:relative; height:100%;
+    background:linear-gradient(90deg, #4edbc6, #a0fff2); border-radius:3px;
+    box-shadow:0 0 10px #8ff0e4, 0 0 20px rgba(0,229,255,0.6);
+    width:0%; pointer-events:none; }
+  .video-scrub-progress::after {
+    content:""; position:absolute; right:-5px; top:50%; transform:translateY(-50%);
+    width:10px; height:10px; border-radius:50%; background:#ffffff;
+    box-shadow:0 0 8px #8ff0e4, 0 0 16px rgba(0,229,255,0.8); }
+  .video-time-tag {
+    font:600 11px "SF Mono",Menlo,monospace; color:#ecfffa;
+    letter-spacing:0.06em; text-shadow:0 1px 3px rgba(2,14,12,0.95), 0 0 10px rgba(111,229,214,0.5);
+    white-space:nowrap; opacity:0.95; }
 
   /* MATERIALIZE-AS-LIGHT (Jared's call 8/9): images ARRIVE as hologram
      — teal monochrome light + one scan sweep — then resolve to their
@@ -593,6 +632,8 @@ function bindItemPointerEvents(item) {
         ringToggle(item);
       } else if (item.type === "orb") {
         openBrowser(item.def.orb, item.x, item.y);
+      } else if (e.target.closest(".bar, .media-bar, .media-header")) {
+        killItem(item);
       }
     }
   };
@@ -688,22 +729,17 @@ function makeVideo(src, title) {
   el.className = "card videocard";
   
   el.innerHTML = `
-    <div class="corner-tr"></div>
-    <div class="corner-bl"></div>
-    <div class="media-header">
-      <div class="title">
-        <span style="font-size:15px;">🎬</span>
-        <span>${escT(title || 'Video')}</span>
-      </div>
-      <div class="actions">
-        <button class="btn-hud video-audio-btn" title="Toggle Sound (Hand Tap / Click)">🔇 MUTED</button>
-        <button class="btn-close video-close-btn" title="Close">✕</button>
-      </div>
+    <div class="spatial-ambient-glow"></div>
+    <div class="spatial-specular-sheen"></div>
+    <div class="media-bar">
+      <h3>🎬 ${escT(title || 'Video')}</h3>
     </div>
     <div class="video-container">
+      <div class="jarvis-scanlines"></div>
       <video src="${escT(src)}" loop autoplay playsinline muted></video>
       <div class="video-play-pulse">▶</div>
       <div class="video-scrubber-bar">
+        <div class="video-play-btn" title="Play / Pause">⏸</div>
         <div class="video-vol-btn" title="Toggle Sound (Mute/Unmute)">🔇</div>
         <div class="video-scrub-track">
           <div class="video-scrub-progress"></div>
@@ -728,24 +764,19 @@ function makeVideo(src, title) {
   const track = el.querySelector(".video-scrub-track");
   const progress = el.querySelector(".video-scrub-progress");
   const timeTag = el.querySelector(".video-time-tag");
-  const audioBtn = el.querySelector(".video-audio-btn");
-  const closeBtn = el.querySelector(".video-close-btn");
   const volBtn = el.querySelector(".video-vol-btn");
+  const playBtn = el.querySelector(".video-play-btn");
   const playPulse = el.querySelector(".video-play-pulse");
 
   function setAudio(unmute, showPulse = true) {
     _ac();
     video.muted = !unmute;
     video.volume = 1.0;
-    if (audioBtn) {
-      audioBtn.textContent = video.muted ? "🔇 MUTED" : "🔊 SOUND";
-      audioBtn.style.borderColor = video.muted ? "rgba(143,240,228,0.4)" : "#8ff0e4";
-      audioBtn.style.background = video.muted ? "rgba(143,240,228,0.12)" : "rgba(143,240,228,0.32)";
-      audioBtn.style.color = video.muted ? "#8ff0e4" : "#fff";
-      audioBtn.style.boxShadow = video.muted ? "none" : "0 0 12px rgba(143,240,228,0.6)";
-    }
     if (volBtn) {
       volBtn.textContent = video.muted ? "🔇" : "🔊";
+      volBtn.style.background = video.muted ? "rgba(143,240,228,0.12)" : "rgba(143,240,228,0.35)";
+      volBtn.style.color = video.muted ? "#ecfffa" : "#fff";
+      volBtn.style.boxShadow = video.muted ? "none" : "0 0 12px rgba(143,240,228,0.6)";
     }
     if (showPulse && playPulse) {
       playPulse.textContent = video.muted ? "🔇" : "🔊";
@@ -758,25 +789,41 @@ function makeVideo(src, title) {
     setAudio(video.muted, true);
   }
 
+  function togglePlay() {
+    if (video.paused) {
+      video.play().then(() => {
+        if (playBtn) playBtn.textContent = "⏸";
+        if (playPulse) {
+          playPulse.textContent = "▶";
+          playPulse.classList.add("active");
+          setTimeout(() => playPulse.classList.remove("active"), 400);
+        }
+      }).catch(() => {});
+    } else {
+      video.pause();
+      if (playBtn) playBtn.textContent = "▶";
+      if (playPulse) {
+        playPulse.textContent = "⏸";
+        playPulse.classList.add("active");
+        setTimeout(() => playPulse.classList.remove("active"), 400);
+      }
+    }
+  }
+
   item.setAudio = setAudio;
   item.toggleAudio = toggleAudio;
+  item.togglePlay = togglePlay;
 
-  if (audioBtn) {
-    audioBtn.onclick = (e) => {
-      e.stopPropagation();
-      toggleAudio();
-    };
-  }
   if (volBtn) {
     volBtn.onclick = (e) => {
       e.stopPropagation();
       toggleAudio();
     };
   }
-  if (closeBtn) {
-    closeBtn.onclick = (e) => {
+  if (playBtn) {
+    playBtn.onclick = (e) => {
       e.stopPropagation();
-      killItem(item);
+      togglePlay();
     };
   }
 
@@ -814,6 +861,14 @@ function makeVideo(src, title) {
 
   video.play().catch(() => {});
 
+  const mediaBar = el.querySelector(".media-bar, .media-header, .bar");
+  if (mediaBar) {
+    mediaBar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      killItem(item);
+    });
+  }
+
   bindItemPointerEvents(item);
   return item;
 }
@@ -836,15 +891,13 @@ function makeImage(src, title) {
   el.className = "card imgcard";
   
   el.innerHTML = `
-    <div class="corner-tr"></div>
-    <div class="corner-bl"></div>
-    <div class="media-header">
-      <div class="title">
-        <span style="font-size:15px;">🖼️</span>
-        <span>${escT(title || 'Photo')}</span>
-      </div>
+    <div class="spatial-ambient-glow"></div>
+    <div class="spatial-specular-sheen"></div>
+    <div class="media-bar">
+      <h3>🖼️ ${escT(title || 'Photo')}</h3>
     </div>
     <div class="media-body">
+      <div class="jarvis-scanlines"></div>
       <div class="img-spinner" style="padding:40px 20px;text-align:center;color:#8ff0e4;font-size:13px;letter-spacing:1px;font-family:monospace;">
         <div style="font-size:32px;margin-bottom:10px;">🖼️</div>
         Loading ${escT(title || 'image')}...
@@ -874,6 +927,14 @@ function makeImage(src, title) {
   img.onerror = () => {
     if (spinner) spinner.innerHTML = `<div style="color:#ff8888;padding:20px;">(Could not load "${escT(title)}")</div>`;
   };
+
+  const mediaBar = el.querySelector(".media-bar, .media-header, .bar");
+  if (mediaBar) {
+    mediaBar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      killItem(item);
+    });
+  }
 
   bindItemPointerEvents(item);
   return item;
@@ -2155,8 +2216,6 @@ async function openPanel(card) {
   const el = document.createElement("div");
   el.className = "panel";
   el.innerHTML = `
-    <div class="corner-tr"></div>
-    <div class="corner-bl"></div>
     <div class="bar">
       <h3>${escT(title)}</h3>
     </div>
@@ -2615,7 +2674,7 @@ function beginGrab(c, i, cur) {
       c.holdX = cur.x; c.holdY = cur.y; c.holdT = performance.now();
       c.tapX = cur.x; c.tapY = cur.y;   // v3.1: tap-close discrimination
     } else if (c.type === "video" || c.type === "img") {
-      const headerEl = c.el.querySelector(".media-header");
+      const headerEl = c.el.querySelector(".media-bar, .media-header, .bar");
       const headerR = headerEl && headerEl.getBoundingClientRect();
       const isHeader = headerR && cur.y >= headerR.top && cur.y <= headerR.bottom &&
                        cur.x >= headerR.left && cur.x <= headerR.right;
@@ -2972,6 +3031,17 @@ function physics(dt) {
       c.rvy = (c.rvy || 0) * Math.pow(0.15, dt);
       c.ry = (c.ry || 0) + ((c.rvy || 0) + 0.12) * dt;
     }
+    if (c.type === "video" || c.type === "img" || c.type === "panel") {
+      // Spatial Parallax: Holographic screens in room space naturally angle toward the viewer
+      const cx = (c.x - innerWidth * 0.5) / Math.max(1, innerWidth * 0.5);
+      const cy = (c.y - innerHeight * 0.5) / Math.max(1, innerHeight * 0.5);
+      const targetRy = -cx * 0.22; // ~13 deg inward yaw toward viewer
+      const targetRx = cy * 0.10;  // subtle vertical pitch toward viewer
+      if (c.mode !== "rotate") {
+        c.ry = (c.ry || 0) + (targetRy - (c.ry || 0)) * Math.min(1, dt * 6);
+        c.rx = (c.rx || 0) + (targetRx - (c.rx || 0)) * Math.min(1, dt * 6);
+      }
+    }
     c.el.style.setProperty("--ch", c.hch || 0);   // hover charge glow
     const w = c.el.offsetWidth, h = c.el.offsetHeight;
     // GLASS ERA: items pose in real 3D (models rotate INSIDE their
@@ -3033,13 +3103,6 @@ async function boot() {
         // only listens to prayer-vertical hands (Jared's rule)
         const handUp = span > 0 ? (W0.y - M9.y) / span : 0;
 
-        // Head-rest & inverted hand suppression
-        const isHeadRest = (W0.y < 0.28 && handUp < 0.25) || (W0.y < 0.16) || (handUp < -0.30);
-        if (isHeadRest) {
-          dropCursor(i);
-          return;
-        }
-
         // 3D vector segment angle helper
         const seg = (a, b) => {
           const dx = lms[b].x - lms[a].x, dy = lms[b].y - lms[a].y,
@@ -3063,12 +3126,19 @@ async function boot() {
         const extFingers = extArr.filter(Boolean).length;
         const holdingI = items.some(k => k.grabbedBy.includes(i));
 
-        // Parked Hand / Chin & Cheek Rest / Closed Fist Suppression:
-        // When resting chin/cheek on hand or holding a closed resting fist,
-        // no fingers are extended (extFingers === 0 or index curl c8 < 0.25)
-        // and hand is not actively holding an item.
-        const isRestingHand = !holdingI && (extFingers === 0 || (extFingers <= 1 && c8 < 0.25 && c12 < 0.25));
-        if (isRestingHand) {
+        const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
+        const ratio = span > 0 ? gap / span : 1;
+
+        // Fingertip clustering detection (scratching comb / claw):
+        const d8_12 = Math.hypot(lms[8].x - lms[12].x, lms[8].y - lms[12].y);
+        const d12_16 = Math.hypot(lms[12].x - lms[16].x, lms[12].y - lms[16].y);
+        const isClawCluster = (d8_12 < span * 0.35) && (d12_16 < span * 0.35);
+
+        // Head scratch & resting fist suppression:
+        const isHangingDown = (W0.y < 0.08) || (handUp < -0.35);
+        const isClosedFistRest = !holdingI && (extFingers === 0 && c8 < 0.18 && c12 < 0.18);
+
+        if (isHangingDown || isClosedFistRest) {
           dropCursor(i);
           return;
         }
@@ -3080,8 +3150,6 @@ async function boot() {
         const _w = toScreen(W0), _m = toScreen(M9);
         cur.wristX = _w.x; cur.wristY = _w.y;   // v3.9.7: the prayer read
         cur.mcpX = _m.x; cur.mcpY = _m.y;
-        const gap = Math.hypot(lms[4].x - lms[8].x, lms[4].y - lms[8].y);
-        const ratio = span > 0 ? gap / span : 1;
         const px = (tip.x + thumb.x) / 2, py = (tip.y + thumb.y) / 2;
         cur.x += (px - cur.x) * 0.80; cur.y += (py - cur.y) * 0.80;
         cur.history.push({ x: cur.x, y: cur.y, t: now });
@@ -3102,7 +3170,12 @@ async function boot() {
         const handGarbage = aspect > 7.5;
         if (handGarbage) cur.probKill = true;
 
-        const pinched = !handGarbage && (wasPinched
+        // Head scratch pinch suppression:
+        // Scratching head with clustered fingers near head height (W0.y < 0.40) must never trigger a pinch click/grab
+        const isHeadScratching = (W0.y < 0.40) && (isClawCluster || (c8 < 0.22 && c12 < 0.22));
+        const canPinch = !isHeadScratching || holdingI;
+
+        const pinched = !handGarbage && canPinch && (wasPinched
           ? !openRead
           : (ratio <= 0.40 || holdingI));
 

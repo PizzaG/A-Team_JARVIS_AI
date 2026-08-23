@@ -632,6 +632,8 @@ function bindItemPointerEvents(item) {
         ringToggle(item);
       } else if (item.type === "orb") {
         openBrowser(item.def.orb, item.x, item.y);
+      } else if (e.target.closest(".bar, .media-bar, .media-header")) {
+        killItem(item);
       }
     }
   };
@@ -859,6 +861,14 @@ function makeVideo(src, title) {
 
   video.play().catch(() => {});
 
+  const mediaBar = el.querySelector(".media-bar, .media-header, .bar");
+  if (mediaBar) {
+    mediaBar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      killItem(item);
+    });
+  }
+
   bindItemPointerEvents(item);
   return item;
 }
@@ -917,6 +927,14 @@ function makeImage(src, title) {
   img.onerror = () => {
     if (spinner) spinner.innerHTML = `<div style="color:#ff8888;padding:20px;">(Could not load "${escT(title)}")</div>`;
   };
+
+  const mediaBar = el.querySelector(".media-bar, .media-header, .bar");
+  if (mediaBar) {
+    mediaBar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      killItem(item);
+    });
+  }
 
   bindItemPointerEvents(item);
   return item;
@@ -2656,7 +2674,7 @@ function beginGrab(c, i, cur) {
       c.holdX = cur.x; c.holdY = cur.y; c.holdT = performance.now();
       c.tapX = cur.x; c.tapY = cur.y;   // v3.1: tap-close discrimination
     } else if (c.type === "video" || c.type === "img") {
-      const headerEl = c.el.querySelector(".media-header");
+      const headerEl = c.el.querySelector(".media-bar, .media-header, .bar");
       const headerR = headerEl && headerEl.getBoundingClientRect();
       const isHeader = headerR && cur.y >= headerR.top && cur.y <= headerR.bottom &&
                        cur.x >= headerR.left && cur.x <= headerR.right;

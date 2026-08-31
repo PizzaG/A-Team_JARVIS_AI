@@ -93,17 +93,13 @@ const AV = (() => {
   /* ------------------------------ bus polling ------------------------------ */
   let raw = { state: "idle", level: 0, samples: null, alert: false,
               loading: false };
-  let stateInFlight = false;
   if (!DEMO) {
     setInterval(async () => {
-      if (stateInFlight) return;
-      stateInFlight = true;
       try {
         const r = await fetch("/state", { cache: "no-store" });
-        if (r.ok) raw = await r.json();
+        raw = await r.json();
       } catch (e) { /* server gone: hold last state */ }
-      finally { stateInFlight = false; }
-    }, 250);
+    }, 120);
   }
 
   /* ------------------------------ demo driver ------------------------------ */
@@ -152,6 +148,9 @@ const AV = (() => {
     if (DEMO) demoUpdate(dt);
     A.state = raw.state || "idle";
     A.alert = !!raw.alert;
+    // Empty unless the voice line was told to publish usage. A face that
+    // wants to draw it reads AV.rateLimits; every other face ignores it.
+    A.rateLimits = raw.rate_limits || {};
     A.level = raw.level || 0;
 
     // adaptive envelope: normalize against a decaying peak, then ease

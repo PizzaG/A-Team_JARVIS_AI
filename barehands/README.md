@@ -20,7 +20,7 @@ cd barehands
 python3 server.py
 ```
 
-On Windows the command is `python server.py`. Open **http://127.0.0.1:8794/stage.html** in Chrome, allow the camera, and wave. That's the whole install: the server is stdlib Python, and the page loads its hand tracking (Google MediaPipe) and 3D (three.js) from CDNs on first run.
+On Windows run `run.bat` instead: a clean Windows 11 has no Python but leaves a Microsoft Store stub on the PATH that looks like one, and `run.bat` finds an interpreter that actually works. Open **http://127.0.0.1:8794/stage.html** in Chrome, allow the camera, and wave. That's the whole install: the server is stdlib Python, and the page loads its hand tracking (Google MediaPipe) and 3D (three.js) from CDNs on first run.
 
 **Already in a Claude Code session with your agent?** One sentence does it all: *"clone https://github.com/jaredrhod/barehands.git, then read barehands/barehands.md and set me up."* Your agent installs it, configures it, and wires itself in.
 

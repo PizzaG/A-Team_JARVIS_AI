@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<!--
+A-Team Command Center
+Designed for the ai-visualizer two-file face layout.
+Uses ../../core.js and the AV runtime bus used by the existing faces.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A-Team Command Center</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#020405;color:#d9e0e2;font-family:"SF Mono",Menlo,Consolas,monospace;cursor:none}
+#stage{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+.hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+.frame{position:absolute;inset:14px;border:1px solid rgba(255,45,62,.30);box-shadow:inset 0 0 70px rgba(0,0,0,.45)}
+.corner{position:absolute;width:38px;height:38px;border-color:#ff263f}
+.tl{left:-1px;top:-1px;border-left:2px solid;border-top:2px solid}
+.tr{right:-1px;top:-1px;border-right:2px solid;border-top:2px solid}
+.bl{left:-1px;bottom:-1px;border-left:2px solid;border-bottom:2px solid}
+.br{right:-1px;bottom:-1px;border-right:2px solid;border-bottom:2px solid}
+
+.top{position:absolute;left:31px;right:31px;top:25px;height:63px;display:flex;justify-content:space-between}
+.brand{display:flex;gap:11px;align-items:flex-start}
+.logo{font-family:Georgia,serif;font-weight:900;font-style:italic;font-size:62px;line-height:.75;color:#ef2539;text-shadow:0 0 18px rgba(255,38,63,.32)}
+.brand h1{font-size:18px;letter-spacing:.22em;margin-top:2px}
+.brand p{font-size:8px;color:#8a969b;letter-spacing:.27em;margin-top:9px}
+.brand b{color:#ff3c50;font-weight:normal}
+.meta{text-align:right;font-size:8px;letter-spacing:.16em;color:#707b80}
+.meta strong{font-size:13px;color:#cfd7da;letter-spacing:.08em}
+.meta .green{color:#54ee87}
+.meta .red{color:#ff4052}
+
+.panel{position:absolute;background:linear-gradient(145deg,rgba(5,9,10,.91),rgba(1,3,4,.74));border:1px solid rgba(145,157,161,.19);box-shadow:inset 0 0 24px rgba(255,255,255,.015);overflow:hidden}
+.panel:before{content:"";position:absolute;left:0;top:0;width:38%;height:1px;background:#ff263f}
+.title{padding:10px 12px 6px;color:#ff3d50;font-size:9px;letter-spacing:.19em}
+.body{padding:0 12px 10px;font-size:8px;line-height:1.65;color:#aeb8bc}
+.row{display:flex;justify-content:space-between;gap:10px}
+.dim{color:#657176}.white{color:#e1e6e8}.green{color:#55ef88}.cyan{color:#48dfff}.amber{color:#ffb04a}.red{color:#ff4052}
+.bar{height:4px;background:rgba(255,255,255,.07);margin:3px 0 6px;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:#ff263f;box-shadow:0 0 9px rgba(255,38,63,.45)}
+.bar.green i{background:#55ef88;box-shadow:0 0 9px rgba(85,239,136,.35)}
+.bar.cyan i{background:#48dfff;box-shadow:0 0 9px rgba(72,223,255,.35)}
+
+#voice{left:31px;top:104px;width:268px;height:170px}
+#wave{height:48px;display:flex;align-items:center;gap:2px;margin:2px 0 6px}
+#wave i{width:3px;background:#ff3046;height:4px;display:block;opacity:.9}
+#resources{left:31px;top:286px;width:268px;height:205px}
+#modules{left:31px;top:503px;width:268px;height:194px}
+#output{left:31px;top:709px;width:268px;height:125px}
+
+#platform{left:312px;top:104px;width:136px;height:250px}
+#localbus{left:312px;top:366px;width:136px;height:180px}
+#hands{left:312px;top:558px;width:136px;height:139px}
+#android{left:312px;top:709px;width:136px;height:125px}
+
+#terminal{right:31px;top:104px;width:318px;height:300px}
+#tools{right:31px;top:416px;width:318px;height:158px}
+#memory{right:31px;top:586px;width:318px;height:112px}
+#events{right:31px;top:709px;width:318px;height:125px}
+
+#coreLabel{position:absolute;left:50%;top:99px;transform:translateX(-50%);font-size:8px;letter-spacing:.36em;color:#6e797e;white-space:nowrap}
+#coreSub{position:absolute;left:50%;bottom:95px;transform:translateX(-50%);font-size:9px;letter-spacing:.28em;color:#7b8589;white-space:nowrap}
+#coreState{position:absolute;left:50%;bottom:69px;transform:translateX(-50%);font-size:16px;letter-spacing:.42em;color:#55ef88;white-space:nowrap}
+#quote{position:absolute;left:50%;bottom:38px;transform:translateX(-50%);font-size:8px;letter-spacing:.20em;color:#69757a;white-space:nowrap}
+#quote b{color:#ff4052;font-weight:normal}
+
+#footer{position:absolute;left:31px;right:31px;bottom:18px;display:flex;justify-content:space-between;font-size:7px;letter-spacing:.16em;color:#687277}
+#footer b{font-weight:normal;color:#ff4052}
+
+.badge{margin:8px auto 7px;width:51px;height:51px;border:1px solid rgba(85,239,136,.38);display:grid;place-items:center;font-size:27px;color:#55ef88;text-shadow:0 0 12px rgba(85,239,136,.35)}
+.badge.cyan{border-color:rgba(72,223,255,.38);color:#48dfff}
+.badge.red{border-color:rgba(255,38,63,.38);color:#ff4052}
+.biglabel{text-align:center;font-size:9px;letter-spacing:.16em}
+.centerline{height:1px;background:linear-gradient(90deg,transparent,rgba(255,38,63,.65),transparent);margin:7px 0}
+
+#terminalLog{font-size:8px;line-height:1.7;white-space:nowrap}
+.prompt{color:#55ef88}
+.cursor{display:inline-block;width:6px;height:10px;background:#55ef88;vertical-align:-2px;animation:blink .8s steps(2,start) infinite}
+@keyframes blink{50%{opacity:.08}}
+
+.tool{display:flex;justify-content:space-between;margin:2px 0}
+.tool span:first-child{color:#aeb8bc}.tool b{font-weight:normal;color:#55ef88}
+.event{display:flex;gap:9px;white-space:nowrap}
+.event time{color:#657176}.event span{color:#b8c0c3}.event .ok{color:#55ef88}.event .warn{color:#ffb04a}
+
+#radar{position:absolute;left:50%;top:51%;width:min(46vw,650px);height:min(46vw,650px);transform:translate(-50%,-50%)}
+.ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(255,38,63,.23)}
+.r2{inset:8%}.r3{inset:19%;border-color:rgba(72,223,255,.19);border-style:dashed}.r4{inset:31%;border-color:rgba(85,239,136,.19)}.r5{inset:43%;border-color:rgba(255,255,255,.12)}
+.ring.spin{animation:spin 19s linear infinite}.ring.reverse{animation:spin 11s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cross{position:absolute;inset:0}
+.cross:before,.cross:after{content:"";position:absolute;background:rgba(255,38,63,.15)}
+.cross:before{left:50%;top:0;width:1px;height:100%}.cross:after{top:50%;left:0;width:100%;height:1px}
+.sweep{position:absolute;left:50%;top:50%;width:50%;height:2px;transform-origin:0 50%;background:linear-gradient(90deg,rgba(85,239,136,.75),transparent);box-shadow:0 0 12px rgba(85,239,136,.4);animation:sweep 5s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+
+#core{position:absolute;left:50%;top:50%;width:230px;height:230px;transform:translate(-50%,-50%);display:grid;place-items:center}
+.coreGlow{position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle,rgba(255,38,63,.16),transparent 67%);animation:corepulse 2.2s ease-in-out infinite}
+@keyframes corepulse{50%{transform:scale(1.13);opacity:.55}}
+.coreDisk{position:absolute;width:142px;height:142px;border:2px solid #ff263f;border-radius:50%;background:rgba(2,4,5,.94);box-shadow:0 0 30px rgba(255,38,63,.16),inset 0 0 28px rgba(255,38,63,.07);display:grid;place-items:center}
+.coreDisk:before{content:"";position:absolute;inset:11px;border:1px dashed rgba(255,38,63,.48);border-radius:50%;animation:spin 9s linear infinite}
+.A{font-family:Georgia,serif;font-weight:900;font-style:italic;font-size:118px;line-height:1;color:#f02a3d;text-shadow:0 0 24px rgba(255,38,63,.48);margin-top:-4px}
+.coreMini{position:absolute;bottom:28px;font-size:7px;letter-spacing:.34em;color:#e7edef}
+
+.tag{position:absolute;font-size:7px;letter-spacing:.16em;color:#6c777c}
+.tag.red{color:#ff5262}.tag.green{color:#55ef88}.tag.cyan{color:#48dfff}.tag.amber{color:#ffb04a}
+.t1{left:50%;top:4%;transform:translateX(-50%)}.t2{right:5%;top:50%;transform:translateY(-50%)}.t3{left:50%;bottom:4%;transform:translateX(-50%)}.t4{left:5%;top:50%;transform:translateY(-50%)}
+
+#signal{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%);pointer-events:none}
+.pkt{position:absolute;width:4px;height:4px;border-radius:50%;background:#55ef88;box-shadow:0 0 9px #55ef88}
+
+.scanlines{position:fixed;inset:0;z-index:30;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 4px)}
+.vignette{position:fixed;inset:0;z-index:31;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.78) 100%)}
+body.cine .hud{opacity:.08;transition:opacity .35s}
+body.cine .panel{opacity:0}
+body.cine #radar{width:min(75vw,1000px);height:min(75vw,1000px);transition:all 1s ease}
+
+@media(max-height:760px){
+  .top{top:20px}.panel{transform:scale(.88);transform-origin:top left}
+  #terminal,#tools,#memory,#events{transform:scale(.88);transform-origin:top right}
+}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="hud">
+  <div class="frame"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></div>
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">A</div>
+      <div>
+        <h1>A-TEAM DIGITAL SOLUTIONS</h1>
+        <p>J.A.R.V.I.S. COMMAND CENTER <b>///</b> LOCAL INTELLIGENCE <b>///</b> REAL SOLUTIONS</p>
+      </div>
+    </div>
+    <div class="meta">
+      <div>LOCAL LINK <strong class="green">SECURE</strong></div>
+      <div style="margin-top:7px">SYSTEM TIME <strong id="clock">00:00:00</strong></div>
+      <div style="margin-top:5px">MODE <strong id="mode">IDLE</strong></div>
+    </div>
+  </header>
+
+  <section class="panel" id="voice">
+    <div class="title">VOICE INPUT</div>
+    <div class="body">
+      <div id="wave"></div>
+      <div class="row"><span class="dim">SIGNAL LEVEL</span><span id="inPct" class="red">0%</span></div>
+      <div class="bar"><i id="inBar" style="width:0%"></i></div>
+      <div class="row"><span class="dim">WHISPER</span><span class="cyan">TINY.EN / CPU</span></div>
+      <div class="row"><span class="dim">CHANNEL</span><span class="green">F4 PTT</span></div>
+      <div class="row"><span class="dim">STATUS</span><span id="inState" class="green">STANDBY</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="resources">
+    <div class="title">SYSTEM RESOURCES</div>
+    <div class="body">
+      <div class="row"><span>CPU</span><span id="cpuTxt">12%</span></div><div class="bar"><i id="cpuBar" style="width:12%"></i></div>
+      <div class="row"><span>MEMORY</span><span id="memTxt">31%</span></div><div class="bar cyan"><i id="memBar" style="width:31%"></i></div>
+      <div class="row"><span>NEURAL LOAD</span><span id="neuralTxt">25%</span></div><div class="bar green"><i id="neuralBar" style="width:25%"></i></div>
+      <div class="centerline"></div>
+      <div class="row"><span class="dim">TEMP</span><span class="white" id="temp">42°C</span><span class="dim">POWER</span><span class="green" id="power">38W</span></div>
+      <div style="margin-top:5px" class="row"><span class="dim">LOCAL BUS</span><span class="green">ACTIVE</span></div>
+      <div class="bar green"><i style="width:82%"></i></div>
+    </div>
+  </section>
+
+  <section class="panel" id="modules">
+    <div class="title">AI MODULES</div>
+    <div class="body">
+      <div class="row"><span>OLLAMA / QWEN3.6:27B</span><span class="green">READY</span></div>
+      <div class="bar green"><i id="m1" style="width:78%"></i></div>
+      <div class="row"><span>WHISPER / TINY.EN</span><span class="green">READY</span></div>
+      <div class="bar cyan"><i id="m2" style="width:32%"></i></div>
+      <div class="row"><span>KOKORO / TTS</span><span class="green">READY</span></div>
+      <div class="bar"><i id="m3" style="width:24%"></i></div>
+      <div class="row"><span>MEMORY VAULT</span><span class="green">READY</span></div>
+      <div class="bar"><i style="width:66%"></i></div>
+      <div class="row"><span>VISUALIZER</span><span class="green">ONLINE</span></div>
+      <div class="bar green"><i style="width:91%"></i></div>
+    </div>
+  </section>
+
+  <section class="panel" id="output">
+    <div class="title">VOICE OUTPUT</div>
+    <div class="body">
+      <div id="outWave" style="height:36px;display:flex;align-items:center;gap:2px"></div>
+      <div class="row"><span class="dim">KOKORO</span><span class="red" id="voiceName">VOICE ACTIVE</span></div>
+      <div class="row"><span class="dim">OUTPUT</span><span id="outPct" class="red">0%</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="platform">
+    <div class="title">PLATFORM</div>
+    <div class="body">
+      <div class="badge cyan">▣</div>
+      <div class="biglabel cyan">ANDROID</div>
+      <div class="centerline"></div>
+      <div class="badge" style="color:#55ef88;border-color:rgba(85,239,136,.38)">⌁</div>
+      <div class="biglabel green">LINUX</div>
+      <div style="margin-top:12px;text-align:center" class="green">ONLINE</div>
+    </div>
+  </section>
+
+  <section class="panel" id="localbus">
+    <div class="title">LOCAL BUS</div>
+    <div class="body">
+      <div class="netmini" style="height:90px;position:relative">
+        <svg width="100%" height="90" viewBox="0 0 110 90">
+          <g stroke="rgba(72,223,255,.35)" fill="none"><path d="M10 45L36 18L70 28L98 12M36 18L53 62L98 78M70 28L53 62L98 12M53 62L98 78"/></g>
+          <g fill="#48dfff"><circle cx="10" cy="45" r="3"/><circle cx="36" cy="18" r="3"/><circle cx="70" cy="28" r="3"/><circle cx="98" cy="12" r="3"/><circle cx="53" cy="62" r="3"/><circle cx="98" cy="78" r="3"/></g>
+        </svg>
+      </div>
+      <div class="row"><span class="dim">NODES</span><span class="cyan">16</span></div>
+      <div class="row"><span class="dim">PACKETS</span><span id="packets" class="green">00042/s</span></div>
+      <div class="row"><span class="dim">LATENCY</span><span id="latency" class="green">18ms</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="hands">
+    <div class="title">HANDS ADDON</div>
+    <div class="body">
+      <div class="badge cyan">♧</div>
+      <div class="biglabel cyan">BAREHANDS</div>
+      <div class="centerline"></div>
+      <div style="text-align:center" class="green">CONNECTED</div>
+      <div style="text-align:center;margin-top:6px" class="dim">STAGE READY</div>
+    </div>
+  </section>
+
+  <section class="panel" id="android">
+    <div class="title">ANDROID OPS</div>
+    <div class="body">
+      <div class="row"><span>ADB</span><span class="green">READY</span></div>
+      <div class="row"><span>FASTBOOT</span><span class="green">READY</span></div>
+      <div class="row"><span>PROJECT</span><span class="cyan">LOCAL</span></div>
+      <div class="row"><span>TOOLS</span><span class="green">ONLINE</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="terminal">
+    <div class="title">LINUX TERMINAL / COMMAND STREAM</div>
+    <div class="body" id="terminalLog">
+      <div><span class="prompt">jarvis@a-team:~$</span> whoami</div>
+      <div>jarvis</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> uname -a</div>
+      <div>Linux local-jarvis x86_64</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> systemctl status jarvis</div>
+      <div class="green">● JARVIS ACTIVE</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> ls Project_Folder/Tools</div>
+      <div class="cyan">agent_tools.py research_tools.py</div>
+      <div class="green">memory.py local_voice.py</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> ps --status</div>
+      <div class="green">OLLAMA WHISPER KOKORO BAREHANDS ONLINE</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> <span id="cmd">ready</span><span class="cursor"></span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="tools">
+    <div class="title">PROJECT TOOLS</div>
+    <div class="body">
+      <div class="tool"><span>filesystem</span><b>READY</b></div>
+      <div class="tool"><span>memory vault</span><b>READY</b></div>
+      <div class="tool"><span>web research</span><b>READY</b></div>
+      <div class="tool"><span>file tools</span><b>READY</b></div>
+      <div class="tool"><span>system tools</span><b>READY</b></div>
+      <div class="tool"><span>android tools</span><b>READY</b></div>
+      <div class="tool"><span>visualizer</span><b>ONLINE</b></div>
+    </div>
+  </section>
+
+  <section class="panel" id="memory">
+    <div class="title">MEMORY VAULT</div>
+    <div class="body">
+      <div class="row"><span class="dim">STATUS</span><span class="green">READY</span></div>
+      <div class="row"><span class="dim">PERSISTENT</span><span class="green">ENABLED</span></div>
+      <div class="row"><span class="dim">LOCAL</span><span class="cyan">TRUE</span></div>
+      <div class="row"><span class="dim">SYNC</span><span id="sync" class="green">STABLE</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="events">
+    <div class="title">SYSTEM LOG</div>
+    <div class="body">
+      <div class="event"><time id="et1">--:--:--</time><span class="ok">Core initialized</span></div>
+      <div class="event"><time id="et2">--:--:--</time><span class="ok">Memory Vault ready</span></div>
+      <div class="event"><time id="et3">--:--:--</time><span class="ok">All systems operational</span></div>
+      <div class="event"><time id="et4">--:--:--</time><span id="eventState" class="ok">Waiting for command...</span></div>
+    </div>
+  </section>
+
+  <div id="coreLabel">A-TEAM DIGITAL SOLUTIONS // COMMAND CORE</div>
+
+  <div id="radar">
+    <div class="ring r1"></div><div class="ring r2 spin"></div><div class="ring r3 reverse"></div><div class="ring r4 spin"></div><div class="ring r5"></div>
+    <div class="cross"></div><div class="sweep"></div>
+    <div class="tag red t1">STRATEGY</div><div class="tag cyan t2">EXECUTION</div><div class="tag green t3">RESULTS</div><div class="tag amber t4">SOLUTIONS</div>
+    <div id="signal"></div>
+  </div>
+
+  <div id="core">
+    <div class="coreGlow"></div>
+    <div class="coreDisk"><div class="A">A</div><div class="coreMini">J.A.R.V.I.S.</div></div>
+  </div>
+
+  <div id="coreSub">LOCAL INTELLIGENCE // ANDROID + LINUX // A-TEAM OPERATIONS</div>
+  <div id="coreState">IDLE</div>
+  <div id="quote">“I LOVE IT WHEN A PLAN COMES TOGETHER.” <b>— HANNIBAL</b></div>
+
+  <footer id="footer">
+    <div>COMMAND BUS — <b>ACTIVE</b></div>
+    <div>SPACE / C — CINEMATIC</div>
+    <div>F — FULLSCREEN</div>
+  </footer>
+</div>
+<div class="scanlines"></div><div class="vignette"></div>
+
+<script src="../../core.js"></script>
+<script>
+"use strict";
+
+const Q=new URLSearchParams(location.search);
+const SHOT=Q.get("shot");
+AV.init({});
+AV.ready(a=>{document.title=(a.name||a.label||"A-Team Command Center");});
+
+const cv=document.getElementById("stage"),ctx=cv.getContext("2d");
+let W=0,H=0,now=0,energy=.2,level=0,lastState="idle",cine=false;
+const wave=document.getElementById("wave"),outWave=document.getElementById("outWave");
+for(let i=0;i<44;i++){const e=document.createElement("i");wave.appendChild(e)}
+for(let i=0;i<30;i++){const e=document.createElement("i");e.style.width="3px";e.style.background="#ff3046";e.style.height="4px";outWave.appendChild(e)}
+
+const particles=[];
+const stars=[];
+for(let i=0;i<240;i++)stars.push({x:Math.random(),y:Math.random(),s:.3+Math.random()*1.4,a:.03+Math.random()*.12,p:Math.random()*6.28});
+
+function resize(){
+  const d=Math.min(devicePixelRatio||1,1.25);
+  W=cv.width=innerWidth*d;H=cv.height=innerHeight*d;
+  cv.style.width=innerWidth+"px";cv.style.height=innerHeight+"px";
+}
+addEventListener("resize",resize);resize();
+
+function col(){
+  if(AV.state==="listening")return [72,223,255];
+  if(AV.state==="thinking")return [255,176,74];
+  return [255,38,63];
+}
+function targetE(){
+  if(AV.state==="thinking")return 1;
+  if(AV.state==="speaking")return .45+.55*Math.max(0,AV.level);
+  if(AV.state==="listening")return .58;
+  return .2;
+}
+function ease(a,b,t){return a+(b-a)*(1-Math.exp(-t))}
+function addPacket(){
+  if(particles.length>70)return;
+  const cx=W/2,cy=H/2,a=Math.random()*Math.PI*2,r=Math.min(W,H)*(.20+Math.random()*.22);
+  particles.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r,a,v:.7+Math.random()*1.8,life:1});
+}
+function drawBackground(dt){
+  ctx.fillStyle="#020405";ctx.fillRect(0,0,W,H);
+  const g=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.min(W,H)*.6);
+  const [r,gr,b]=col();
+  g.addColorStop(0,`rgba(${r},${gr},${b},${.025+.07*energy})`);
+  g.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(255,255,255,.018)";ctx.lineWidth=1;
+  const step=Math.max(26,Math.min(W,H)/28);ctx.beginPath();
+  for(let x=0;x<W;x+=step){ctx.moveTo(x,0);ctx.lineTo(x,H)}
+  for(let y=0;y<H;y+=step){ctx.moveTo(0,y);ctx.lineTo(W,y)}
+  ctx.stroke();
+  for(const s of stars){
+    s.p+=dt*.001;
+    const a=s.a*(.55+.45*Math.sin(s.p));
+    ctx.fillStyle=`rgba(210,220,222,${a})`;
+    ctx.fillRect(s.x*W,s.y*H,s.s,s.s);
+  }
+}
+function drawPackets(dt){
+  const [r,gr,b]=col(),cx=W/2,cy=H/2;
+  for(const p of particles){
+    p.r=Math.hypot(p.x-cx,p.y-cy);
+    p.r-=p.v*dt*.06*(.7+energy*4);
+    p.x=cx+Math.cos(p.a)*p.r;p.y=cy+Math.sin(p.a)*p.r;p.life-=dt*.0006;
+    ctx.fillStyle=`rgba(${r},${gr},${b},${Math.max(0,p.life)})`;
+    ctx.shadowBlur=10;ctx.shadowColor=`rgb(${r},${gr},${b})`;
+    ctx.beginPath();ctx.arc(p.x,p.y,1.5+2*energy,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  }
+  for(let i=particles.length-1;i>=0;i--)if(particles[i].life<=0)particles.splice(i,1);
+}
+function updateHUD(){
+  const s=AV.state;
+  const label=s==="thinking"?"THINKING":s==="speaking"?"SPEAKING":s==="listening"?"LISTENING":"IDLE";
+  document.getElementById("mode").textContent=label;
+  document.getElementById("coreState").textContent=label;
+  document.getElementById("inState").textContent=s==="listening"?"RECEIVING":"STANDBY";
+  const [r,g,b]=col();
+  const rgb=`rgb(${r},${g},${b})`;
+  document.getElementById("coreState").style.color=rgb;
+  document.getElementById("eventState").textContent=s==="thinking"?"Processing command...":s==="speaking"?"Response transmitting...":s==="listening"?"Listening for input...":"Waiting for command...";
+  document.getElementById("eventState").className=s==="thinking"?"warn":s==="speaking"?"ok":"ok";
+}
+function drawWave(){
+  const inBars=wave.children,outBars=outWave.children;
+  for(let i=0;i<inBars.length;i++){
+    const v=3+Math.abs(Math.sin(now*.009+i*.9))*6+AV.level*20;
+    inBars[i].style.height=Math.max(3,v*(AV.state==="listening"?1.4:.55))+"px";
+  }
+  for(let i=0;i<outBars.length;i++){
+    const v=3+Math.abs(Math.sin(now*.011+i*1.13))*7+AV.level*24;
+    outBars[i].style.height=Math.max(3,v*(AV.state==="speaking"?1.2:.5))+"px";
+  }
+}
+function tick(dt){
+  AV.tick(dt);
+  if(AV.state!==lastState){lastState=AV.state;updateHUD()}
+  energy=ease(energy,targetE(),AV.state==="speaking"?150:500,dt);
+  level=ease(level,AV.level,100,dt);
+
+  if(Math.random()<.015+.12*energy)addPacket();
+
+  const cpu=Math.round(10+energy*45+Math.abs(Math.sin(now*.0007))*6);
+  const mem=Math.round(30+energy*15);
+  const neural=Math.round(20+energy*78);
+  const pct=Math.round(Math.max(0,Math.min(100,AV.level*100)));
+  const set=(id,v)=>document.getElementById(id).textContent=v;
+  const bar=(id,v)=>document.getElementById(id).style.width=v+"%";
+  set("cpuTxt",cpu+"%");bar("cpuBar",cpu);
+  set("memTxt",mem+"%");bar("memBar",mem);
+  set("neuralTxt",neural+"%");bar("neuralBar",neural);
+  set("inPct",pct+"%");bar("inBar",pct);
+  set("outPct",Math.round(AV.state==="speaking"?pct:level*100)+"%");
+  set("packets",String(Math.round(32+energy*180)).padStart(5,"0")+"/s");
+  set("latency",Math.round(12+energy*24)+"ms");
+  set("temp",Math.round(40+energy*7)+"°C");
+  set("power",Math.round(34+energy*18)+"W");
+  document.getElementById("m1").style.width=Math.min(98,68+energy*28)+"%";
+  document.getElementById("m2").style.width=Math.min(98,24+energy*30)+"%";
+  document.getElementById("m3").style.width=Math.min(98,18+energy*34)+"%";
+  document.getElementById("clock").textContent=new Date().toLocaleTimeString([],{hour12:false});
+  drawWave();
+}
+function frame(ts){
+  const dt=Math.min(50,ts-(frame.last||ts));frame.last=ts;now+=dt;
+  tick(dt);drawBackground(dt);drawPackets(dt);
+  if(SHOT){requestAnimationFrame(frame)}
+  else requestAnimationFrame(frame);
+}
+updateHUD();
+requestAnimationFrame(frame);
+
+addEventListener("keydown",e=>{
+  if(e.key==="f"||e.key==="F"){
+    document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+  }
+  if(e.code==="Space"||e.key==="c"||e.key==="C"){
+    e.preventDefault();cine=!cine;document.body.classList.toggle("cine",cine);
+  }
+});
+</script>
+</body>
+</html>

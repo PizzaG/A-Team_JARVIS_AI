@@ -457,6 +457,13 @@ function chipFor(name,ri,state,alert){
   return["OK",(now/1000|0)%4?GREEN:dim2(GREEN,.7)];
 }
 function dim2(c,f){return[c[0]*f|0,c[1]*f|0,c[2]*f|0]}
+function relTime(ep){
+  const d=ep-Date.now()/1000;
+  if(!(d>0))return"";
+  if(d<3600)return Math.round(d/60)+"m";
+  if(d<86400)return Math.round(d/3600)+"h";
+  return Math.round(d/86400)+"d";
+}
 
 function drawChrome(state,alert,env,t){
   const ink=alert?RED:INK, inkB=alert?RED:INK_BRIGHT;
@@ -506,6 +513,35 @@ function drawChrome(state,alert,env,t){
     ctx.fillStyle=dim(col,1);
     ctx.fillText(chip,px2+pw-cw2-5,py);
     py+=19;
+  }
+
+  // PLAN USAGE — the five-hour and weekly windows, drawn only when the
+  // voice line was told to publish them. Nothing here appears by
+  // default: it is the account holder's own spend and this face is
+  // often pointed at a camera.
+  //
+  // A window that has reported no percentage yet draws a dash rather
+  // than vanishing. A row that disappears reads as a broken panel; a
+  // dash reads as "not yet", which is what it actually means.
+  const rl=AV.rateLimits||{};
+  if(rl.five_hour||rl.seven_day){
+    ctx.strokeStyle=dim(ink,.35);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px2,py-9);ctx.lineTo(px2+pw,py-9);ctx.stroke();
+    py+=5;
+    for(const[label,w]of[["5H",rl.five_hour],["7D",rl.seven_day]]){
+      if(!w)continue;
+      const known=w.utilization!=null;
+      const pct=known?Math.round(w.utilization*100):null;
+      const col=known&&pct>=80?RED:AMBER;
+      ctx.fillStyle=dim(ink,.85);
+      ctx.fillText(label,px2,py);
+      const rel=w.resets_at?relTime(w.resets_at):"";
+      const txt=(known?pct+"%":"—")+(rel?"  "+rel:"");
+      const tw=ctx.measureText(txt).width;
+      ctx.fillStyle=dim(col,1);
+      ctx.fillText(txt,px2+pw-tw,py);
+      py+=19;
+    }
   }
 
   // meters

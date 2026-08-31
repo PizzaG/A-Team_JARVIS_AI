@@ -1,282 +1,144 @@
-"""
-agent_tools.py - Local agent tool registry, schemas, and safe execution engine.
-"""
-import os
-import subprocess
-import json
+from __future__ import annotations
+import json, os, shlex, shutil, subprocess
 from pathlib import Path
-from vault_manager import VaultManager
+from research_tools import (
+    ResearchError, list_files, read_file, search_files, file_info,
+    archive_list, extract_archive, web_search, open_url, download_url, safe_path,
+)
 
-# Tool schemas compatible with Ollama and OpenAI function calling standards
-TOOL_DEFINITIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read the contents of a text or code file at the given path.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the file (absolute or relative to current workspace)."
-                    }
-                },
-                "required": ["path"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "Write or overwrite content to a file.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the file to create or overwrite."
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "The exact text content to write."
-                    }
-                },
-                "required": ["path", "content"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "edit_file",
-            "description": "Replace a specific substring in a file with new content.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Path to the file to edit."
-                    },
-                    "target": {
-                        "type": "string",
-                        "description": "The exact string to find and replace."
-                    },
-                    "replacement": {
-                        "type": "string",
-                        "description": "The replacement string."
-                    }
-                },
-                "required": ["path", "target", "replacement"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_directory",
-            "description": "List files and subdirectories in a directory.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Directory path to list (defaults to current directory '.')."
-                    }
-                },
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "run_command",
-            "description": "Run a shell/PowerShell command on the local machine and get standard output and error.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The shell command line to execute."
-                    }
-                },
-                "required": ["command"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_memory",
-            "description": "Search the persistent memory vault for notes and past lessons.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Keyword or concept to search for in memory."
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "append_memory",
-            "description": "Save a new fact, preference, or lesson into the agent's memory vault.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "note_name": {
-                        "type": "string",
-                        "description": "The note to append to: MEMORY.md, LESSONS.md, or PEOPLE.md"
-                    },
-                    "entry": {
-                        "type": "string",
-                        "description": "The knowledge or lesson item to record."
-                    }
-                },
-                "required": ["note_name", "entry"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "present_on_board",
-            "description": "Present an enlarged spotlight card, note, or diagram onto the Barehands glass air board.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Card title to display on the glass."
-                    },
-                    "body": {
-                        "type": "string",
-                        "description": "Text or markdown content to display on the glass."
-                    }
-                },
-                "required": ["title", "body"]
-            }
-        }
-    }
-]
+class JarvisTools:
+    def __init__(self, project_root: Path, memory):
+        self.root = Path(project_root).resolve()
+        self.memory = memory
 
-GATED_TOOLS = {"write_file", "edit_file", "run_command"}
+    def _tool_candidates(self, query: str = ""):
+        tools = self.root / "Tools"
+        if not tools.exists():
+            return "No Tools directory exists under Project_Folder."
+        q = query.lower().strip()
+        rows=[]
+        for p in sorted(tools.rglob('*')):
+            if not p.is_file() or any(x in {'.git','venv','.venv','__pycache__'} for x in p.parts):
+                continue
+            if p.suffix.lower() not in {'.sh','.bash','.py','.pl','.rb','.js','.exe','.bin'} and p.name.lower() not in {'lpunpack','simg2img'}:
+                continue
+            text=''
+            try:
+                if p.suffix.lower() in {'.sh','.bash','.py','.pl','.rb','.js'} and p.stat().st_size <= 512*1024:
+                    text=p.read_text(encoding='utf-8',errors='replace')[:20000]
+            except Exception:
+                pass
+            hay=(str(p.relative_to(self.root))+' '+text).lower()
+            if q and q not in hay:
+                continue
+            rows.append(str(p.relative_to(self.root)))
+            if len(rows)>=100:
+                break
+        return '\n'.join(rows) if rows else 'No matching tools found.'
 
-class ToolEngine:
-    def __init__(self, workspace_dir: str | Path | None = None, vault: VaultManager | None = None):
-        self.workspace_dir = Path(workspace_dir or os.getcwd()).resolve()
-        self.vault = vault or VaultManager()
-
-    def is_gated(self, tool_name: str) -> bool:
-        return tool_name in GATED_TOOLS
-
-    def execute(self, tool_name: str, args: dict) -> dict:
-        """Execute a tool and return result dictionary with 'status' and 'output'."""
+    def _run_project_command(self, command: str, cwd: str = ".", timeout: int = 1800, show_output: bool = False):
+        work=safe_path(cwd)
+        if not work.is_dir(): raise ResearchError(f"Working directory does not exist: {cwd}")
+        # Commands execute from the project sandbox. The shell cannot escape via cwd,
+        # but Jarvis still gives Qwen the responsibility to choose the command.
+        # Project tools are non-interactive by default. Never inherit Jarvis's
+        # terminal stdin: scripts that end with `read`, `read -p`, `pause`, etc.
+        # would otherwise steal the user's Jarvis input and can make the main
+        # conversation appear to hang or loop.
+        proc=subprocess.Popen(command, shell=True, cwd=str(work), stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, bufsize=1, executable='/bin/bash')
+        lines=[]
         try:
-            handler = getattr(self, f"_tool_{tool_name}", None)
-            if not handler:
-                return {"status": "error", "output": f"Unknown tool: {tool_name}"}
-            res = handler(**args)
-            return {"status": "success", "output": res}
-        except Exception as e:
-            return {"status": "error", "output": f"Error executing {tool_name}: {str(e)}"}
+            for line in proc.stdout:
+                line=line.rstrip()
+                if line:
+                    # Keep command output internal. Qwen receives it for reasoning;
+                    # raw script banners must never leak into Jarvis's terminal.
+                    lines.append(line)
+                    if len(lines)>400:
+                        lines=lines[-400:]
+            rc=proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill(); proc.wait()
+            raise ResearchError(f"Command timed out after {timeout} seconds")
+        result={'exit_code':rc,'cwd':str(work.relative_to(self.root)),'output':'\n'.join(lines[-200:])}
+        return json.dumps(result, indent=2)
 
-    def _resolve_path(self, path_str: str) -> Path:
-        p = Path(path_str).expanduser()
-        if not p.is_absolute():
-            p = (self.workspace_dir / p).resolve()
-        return p
+    def _copy_path(self, source: str, destination: str):
+        src=safe_path(source); dst=safe_path(destination)
+        if not src.exists(): raise ResearchError(f"Source not found: {source}")
+        dst.parent.mkdir(parents=True,exist_ok=True)
+        if src.is_dir(): shutil.copytree(src,dst,dirs_exist_ok=True)
+        else: shutil.copy2(src,dst)
+        return f"Copied {src.relative_to(self.root)} to {dst.relative_to(self.root)}"
 
-    def _tool_read_file(self, path: str) -> str:
-        p = self._resolve_path(path)
-        if not p.exists():
-            return f"Error: File not found: {p}"
-        if not p.is_file():
-            return f"Error: Path is not a file: {p}"
+    def _move_path(self, source: str, destination: str):
+        src=safe_path(source); dst=safe_path(destination)
+        if not src.exists(): raise ResearchError(f"Source not found: {source}")
+        dst.parent.mkdir(parents=True,exist_ok=True)
+        shutil.move(str(src),str(dst))
+        return f"Moved {src.name} to {dst.relative_to(self.root)}"
+
+    def _delete_path(self, path: str, confirm: bool = False):
+        if not confirm:
+            return "Deletion not performed. Ask the user for confirmation before deleting files or directories."
+        p=safe_path(path)
+        if not p.exists(): raise ResearchError(f"Path not found: {path}")
+        if p.is_dir(): shutil.rmtree(p)
+        else: p.unlink()
+        return f"Deleted {path}"
+
+    def remember(self, fact: str):
+        return self.memory.remember(fact)
+
+    def search_memory(self, query: str):
+        return self.memory.search(query, limit=10) or "No matching persistent memory found."
+
+    def definitions(self):
+        def fn(name, desc, props, required=None):
+            return {'type':'function','function':{'name':name,'description':desc,'parameters':{'type':'object','properties':props,'required':required or []}}}
+        return [
+            fn('list_project_files','List files in the local Project_Folder. Use this to inspect the workspace before acting.',
+               {'path':{'type':'string','description':'Relative directory inside Project_Folder, default .'},'pattern':{'type':'string','description':'Filename glob, default *'},'limit':{'type':'integer','description':'Maximum results, default 100'}}),
+            fn('read_project_file','Read a text file from Project_Folder with line numbers.',
+               {'path':{'type':'string'},'start_line':{'type':'integer'},'end_line':{'type':'integer'}} ,['path']),
+            fn('search_project_files','Search text files recursively inside Project_Folder.',
+               {'query':{'type':'string'},'path':{'type':'string','description':'Relative directory, default .'},'case_sensitive':{'type':'boolean'},'max_results':{'type':'integer'}},['query']),
+            fn('inspect_file','Inspect a project file: size, type, modified time and hash when practical.',{'path':{'type':'string'}},['path']),
+            fn('list_archive','List the contents of a ZIP/TAR archive.',{'path':{'type':'string'},'limit':{'type':'integer'}},['path']),
+            fn('extract_archive','Extract a ZIP/TAR archive safely inside Project_Folder.',{'path':{'type':'string'},'destination':{'type':'string'}},['path']),
+            fn('find_project_tools','Discover scripts/binaries under Project_Folder/Tools. Search their filenames and readable source for a term.',{'query':{'type':'string'}}),
+            fn('run_project_command','Run a shell command from a directory inside Project_Folder and return its exit code and output. Use this for project tools after inspecting them.',{'command':{'type':'string'},'cwd':{'type':'string','description':'Relative working directory, default .'},'timeout':{'type':'integer','description':'Timeout in seconds, default 1800'},'show_output':{'type':'boolean','description':'Show raw command output in the Jarvis terminal. Default false.'}},['command']),
+            fn('copy_project_path','Copy a file or directory inside Project_Folder.',{'source':{'type':'string'},'destination':{'type':'string'}},['source','destination']),
+            fn('move_project_path','Move a file or directory inside Project_Folder.',{'source':{'type':'string'},'destination':{'type':'string'}},['source','destination']),
+            fn('delete_project_path','Delete a file or directory inside Project_Folder. Requires confirm=true; ask the user before destructive deletion.',{'path':{'type':'string'},'confirm':{'type':'boolean'}},['path','confirm']),
+            fn('web_search','Search the Internet using the local DDGS backend.',{'query':{'type':'string'},'max_results':{'type':'integer'}},['query']),
+            fn('open_web_page','Fetch and extract readable text from a web page.',{'url':{'type':'string'},'max_chars':{'type':'integer'}},['url']),
+            fn('download_web_file','Download a web file into Project_Folder/downloads.',{'url':{'type':'string'},'filename':{'type':'string'}},['url']),
+            fn('remember','Save a fact or decision to persistent Jarvis memory.',{'fact':{'type':'string'}},['fact']),
+            fn('search_memory','Search persistent Jarvis memory for relevant information.',{'query':{'type':'string'}},['query']),
+        ]
+
+    def call(self, name, args):
+        args=args or {}
         try:
-            return p.read_text(encoding="utf-8", errors="replace")[:10000]
+            if name=='list_project_files': return list_files(args.get('path','.'),args.get('pattern','*'),args.get('limit',100))
+            if name=='read_project_file': return read_file(args['path'],args.get('start_line',1),args.get('end_line'))
+            if name=='search_project_files': return search_files(args['query'],args.get('path','.'),args.get('case_sensitive',False),args.get('max_results',50))
+            if name=='inspect_file': return file_info(args['path'])
+            if name=='list_archive': return archive_list(args['path'],args.get('limit',500))
+            if name=='extract_archive': return extract_archive(args['path'],args.get('destination'))
+            if name=='find_project_tools': return self._tool_candidates(args.get('query',''))
+            if name=='run_project_command': return self._run_project_command(args['command'],args.get('cwd','.'),args.get('timeout',1800),args.get('show_output',False))
+            if name=='copy_project_path': return self._copy_path(args['source'],args['destination'])
+            if name=='move_project_path': return self._move_path(args['source'],args['destination'])
+            if name=='delete_project_path': return self._delete_path(args['path'],args.get('confirm',False))
+            if name=='web_search': return web_search(args['query'],args.get('max_results',8))
+            if name=='open_web_page': return open_url(args['url'],args.get('max_chars',20000))
+            if name=='download_web_file': return download_url(args['url'],args.get('filename'))
+            if name=='remember': return self.remember(args['fact']) or 'Memory saved.'
+            if name=='search_memory': return self.search_memory(args['query'])
+            return f"Unknown tool: {name}"
         except Exception as e:
-            return f"Error reading file: {e}"
-
-    def _tool_write_file(self, path: str, content: str) -> str:
-        p = self._resolve_path(path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8")
-        return f"Successfully wrote {len(content)} characters to {p.name}"
-
-    def _tool_edit_file(self, path: str, target: str, replacement: str) -> str:
-        p = self._resolve_path(path)
-        if not p.exists():
-            return f"Error: File not found: {p}"
-        text = p.read_text(encoding="utf-8")
-        if target not in text:
-            return f"Error: Target text not found in {p.name}"
-        new_text = text.replace(target, replacement, 1)
-        p.write_text(new_text, encoding="utf-8")
-        return f"Successfully edited {p.name}"
-
-    def _tool_list_directory(self, path: str = ".") -> str:
-        p = self._resolve_path(path)
-        if not p.exists():
-            return f"Error: Directory not found: {p}"
-        items = []
-        for child in sorted(p.iterdir()):
-            kind = "DIR " if child.is_dir() else "FILE"
-            size = f"{child.stat().st_size}B" if child.is_file() else ""
-            items.append(f"{kind}  {child.name:30} {size}")
-        return "\n".join(items) if items else "(empty directory)"
-
-    def _tool_run_command(self, command: str) -> str:
-        res = subprocess.run(
-            command,
-            shell=True,
-            cwd=str(self.workspace_dir),
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        out = res.stdout.strip()
-        err = res.stderr.strip()
-        if res.returncode != 0:
-            return f"Exit code {res.returncode}\nSTDOUT:\n{out}\nSTDERR:\n{err}"
-        return out if out else "(command executed successfully with no output)"
-
-    def _tool_search_memory(self, query: str) -> str:
-        results = self.vault.search_notes(query)
-        if not results:
-            return f"No memory entries found matching '{query}'."
-        lines = []
-        for r in results:
-            lines.append(f"[{r['note']}]")
-            for m in r['matches']:
-                lines.append(f"  - {m}")
-        return "\n".join(lines)
-
-    def _tool_append_memory(self, note_name: str, entry: str) -> str:
-        ok = self.vault.append_note(note_name, entry)
-        if ok:
-            return f"Recorded memory in {note_name}: '{entry}'"
-        return f"Failed to record memory in {note_name}"
-
-    def _tool_present_on_board(self, title: str, body: str) -> str:
-        try:
-            import urllib.request
-            req_data = json.dumps({"a": "present", "title": title, "body": body}).encode("utf-8")
-            req = urllib.request.Request("http://127.0.0.1:8794/cmd", data=req_data, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
-                if resp.status in (200, 204):
-                    return f"Successfully presented '{title}' onto the Barehands glass air board."
-                return f"Board returned status {resp.status}"
-        except Exception as e:
-            return f"Could not reach Barehands board on http://127.0.0.1:8794 (is Barehands server running?): {e}"
-
-if __name__ == "__main__":
-    engine = ToolEngine()
-    print("Listing dir:", engine.execute("list_directory", {"path": "."}))
+            return f"TOOL ERROR: {type(e).__name__}: {e}"

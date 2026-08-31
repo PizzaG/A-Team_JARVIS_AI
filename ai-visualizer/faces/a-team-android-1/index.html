@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A-Team Android Hoodie</title>
+<style>
+:root{--g:#78c83f;--gh:#b8ff75;--c:#25dfff;--b:#168cff;--r:#e63946;--i:#eaf6ef;--d:#61736a;--m:"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#010609;cursor:none}
+body{font-family:var(--m);color:var(--i)}
+#face{position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;background:#010609;filter:saturate(.98) contrast(1.04)}
+#tint{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 48%,rgba(25,210,255,.05),transparent 43%),linear-gradient(90deg,rgba(0,16,28,.14),transparent 35%,transparent 65%,rgba(0,16,28,.14));mix-blend-mode:screen}
+#scan{position:fixed;inset:0;pointer-events:none;opacity:.13;background:repeating-linear-gradient(0deg,rgba(80,220,255,.035) 0 1px,transparent 1px 4px)}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.68) 100%)}
+#hud{position:fixed;inset:0;pointer-events:none}
+.corner{position:absolute;width:44px;height:44px;border-color:rgba(37,223,255,.48)}
+.tl{left:20px;top:20px;border-left:2px solid;border-top:2px solid}.tr{right:20px;top:20px;border-right:2px solid;border-top:2px solid}
+.bl{left:20px;bottom:20px;border-left:2px solid;border-bottom:2px solid}.br{right:20px;bottom:20px;border-right:2px solid;border-bottom:2px solid}
+#brand{position:absolute;left:50px;top:38px}.main{font-size:clamp(20px,1.7vw,34px);letter-spacing:.12em}.main b{color:var(--g)}
+.sub{font-size:7px;letter-spacing:.3em;color:var(--c);margin-top:7px}
+#status{position:absolute;right:50px;top:38px;text-align:right}
+#state{font-size:clamp(12px,1vw,19px);letter-spacing:.42em}
+#statusLine{display:block;margin-top:7px;font-size:7px;letter-spacing:.22em;color:var(--gh)}
+#clock{margin-top:7px;font-size:9px;color:var(--c);letter-spacing:.25em}
+.panel{position:absolute;min-width:205px;padding:10px 12px;background:rgba(0,7,12,.62);border:1px solid rgba(37,223,255,.16);box-shadow:0 10px 35px rgba(0,0,0,.35);font-size:7px;line-height:1.9}
+.panel:before{content:"";position:absolute;left:-1px;top:-1px;width:48px;height:2px;background:var(--g)}
+.head{font-size:8px;letter-spacing:.22em;color:var(--c);margin-bottom:5px}.row{display:flex;justify-content:space-between;gap:28px}.dim{color:var(--d)}.ok{color:var(--gh)}
+#left{left:40px;top:28%}#right{right:40px;top:28%}
+#ring{position:absolute;left:50%;top:50%;width:min(45vw,680px);height:min(45vw,680px);transform:translate(-50%,-50%);border:1px solid rgba(37,223,255,.13);border-radius:50%;box-shadow:0 0 75px rgba(37,223,255,.055);animation:spin 32s linear infinite}
+#ring:before,#ring:after{content:"";position:absolute;border-radius:50%;border:1px dashed rgba(120,200,63,.15)}
+#ring:before{inset:8%}#ring:after{inset:24%;border-color:rgba(37,223,255,.18)}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+#voice{position:absolute;left:40px;bottom:35px;width:220px;height:68px;border:1px solid rgba(37,223,255,.15);background:rgba(0,7,12,.58);padding:9px 11px}
+#wave{height:34px;display:flex;align-items:center;gap:2px;margin-top:3px}#wave i{width:3px;height:3px;background:var(--c);border-radius:2px;box-shadow:0 0 7px rgba(37,223,255,.4)}
+#terminal{position:absolute;left:50%;bottom:35px;transform:translateX(-50%);width:min(34vw,470px);height:68px;padding:8px 11px;background:rgba(0,7,12,.58);border:1px solid rgba(37,223,255,.15);font-size:7px;line-height:1.9;color:#6b7c74}
+.prompt{color:var(--gh)}.cmd{color:#dcebe3}.cursor{display:inline-block;width:5px;height:9px;background:var(--g);vertical-align:-2px;animation:blink .8s steps(2,start) infinite}
+@keyframes blink{50%{opacity:.15}}
+#bottom{position:absolute;right:40px;bottom:35px;color:var(--d);font-size:7px;letter-spacing:.18em;text-align:right}#bottom b{color:var(--gh);font-weight:normal}
+body.listening #ring{border-color:rgba(37,223,255,.5);box-shadow:0 0 100px rgba(37,223,255,.12);animation-duration:11s}
+body.thinking #ring{border-color:rgba(255,204,92,.42);animation-duration:7s}
+body.speaking #ring{border-color:rgba(120,200,63,.55);box-shadow:0 0 110px rgba(120,200,63,.12);animation-duration:16s}
+body.listening #state{color:var(--c)}body.thinking #state{color:#ffcf6a}body.speaking #state{color:var(--gh)}
+</style>
+</head>
+<body>
+<img id="face" src="face.png" alt="Android mascot wearing an A-Team hoodie">
+<div id="tint"></div><div id="scan"></div><div id="vig"></div>
+<div id="hud">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div id="brand"><div class="main"><b>A-TEAM</b> // ANDROID OS</div><div class="sub">DIGITAL SOLUTIONS // J.A.R.V.I.S. COMMAND AVATAR</div></div>
+<div id="status"><div id="state">IDLE</div><span id="statusLine">ANDROID OS ONLINE // JARVIS LINKED</span><div id="clock">00:00:00</div></div>
+<div id="ring"></div>
+<section class="panel" id="left"><div class="head">ANDROID OS</div>
+<div class="row"><span class="dim">PLATFORM</span><span class="ok">ANDROID</span></div><div class="row"><span class="dim">ADB</span><span class="ok">AUTHORIZED</span></div>
+<div class="row"><span class="dim">FASTBOOT</span><span class="ok">READY</span></div><div class="row"><span class="dim">BOOT</span><span class="ok">VERIFIED</span></div>
+<div class="row"><span class="dim">JARVIS</span><span class="ok">BOUND</span></div><div class="row"><span class="dim">POLICY</span><span>LOCAL-FIRST</span></div></section>
+<section class="panel" id="right"><div class="head">A-TEAM SYSTEM BUS</div>
+<div class="row"><span class="dim">CPU</span><span id="cpu">12%</span></div><div class="row"><span class="dim">RAM</span><span id="ram">38%</span></div>
+<div class="row"><span class="dim">AI CORE</span><span id="ai">18%</span></div><div class="row"><span class="dim">VOICE</span><span class="ok">KOKORO</span></div>
+<div class="row"><span class="dim">NETWORK</span><span class="ok">SECURE</span></div><div class="row"><span class="dim">THREAT</span><span class="ok">ZERO</span></div></section>
+<div id="voice"><div class="head">VOICE BUS // REACTIVE</div><div id="wave"></div></div>
+<div id="terminal"><span class="prompt">a-team@android:~$</span> <span class="cmd" id="term">jarvis status</span><br><span>LOCAL AI // ANDROID CORE // A-TEAM COMMAND LINK </span><span class="prompt">READY</span><br><span class="prompt">a-team@android:~$</span> <span class="cmd">_</span><span class="cursor"></span></div>
+<div id="bottom">UNIT <b>AT-ANDROID-01</b> &nbsp; // &nbsp; [SPACE/C] CINEMATIC &nbsp; // &nbsp; [F] FULLSCREEN</div>
+</div>
+<script src="../../core.js"></script>
+<script>
+"use strict";
+const Q=new URLSearchParams(location.search),SHOT=Q.get("shot"),$=id=>document.getElementById(id);
+let lastState="idle",now=0,cine=false;
+AV.init({});
+AV.ready(a=>{document.title=(a.label||"A-Team Android")+" // A-Team";});
+for(let i=0;i<40;i++){const e=document.createElement("i");$("wave").appendChild(e)}
+function sync(){
+ const s=AV.state;
+ document.body.classList.toggle("listening",s==="listening");
+ document.body.classList.toggle("thinking",s==="thinking");
+ document.body.classList.toggle("speaking",s==="speaking");
+ const n=s==="thinking"?"THINKING":s==="speaking"?"SPEAKING":s==="listening"?"LISTENING":"IDLE";
+ $("state").textContent=n;
+ $("statusLine").textContent=s==="idle"?"ANDROID OS ONLINE // JARVIS LINKED":n+" // JARVIS ACTIVE";
+ $("term").textContent=s==="thinking"?"jarvis process --working":s==="speaking"?"kokoro --transmit":s==="listening"?"whisper --receive":"jarvis status";
+}
+function frame(dt){
+ AV.tick(dt);now+=dt;
+ if(AV.state!==lastState){lastState=AV.state;sync()}
+ const e=AV.state==="thinking"?1:AV.state==="speaking"?Math.min(1,.35+.65*AV.level):AV.state==="listening"?.55:.18;
+ $("cpu").textContent=Math.round(11+e*58)+"%";
+ $("ram").textContent=Math.round(37+e*23)+"%";
+ $("ai").textContent=Math.round(13+e*84)+"%";
+ $("clock").textContent=new Date().toLocaleTimeString([],{hour12:false});
+ [...$("wave").children].forEach((x,i)=>x.style.height=(3+Math.abs(Math.sin(now*.011+i*.72))*(5+AV.level*25))*(AV.state==="listening"?1.15:.5)+"px");
+}
+sync();
+if(SHOT)AV.shotRun(frame);else{let last=performance.now();function loop(t){const dt=Math.min(50,t-last);last=t;frame(dt);requestAnimationFrame(loop)}requestAnimationFrame(loop)}
+function toggleCine(){cine=!cine;document.getElementById("hud").style.opacity=cine?".28":"1";document.getElementById("face").style.transform=cine?"scale(1.04)":"scale(1)"}
+addEventListener("keydown",e=>{if(e.code==="Space"||e.key==="c"||e.key==="C"){e.preventDefault();toggleCine()}if(e.key==="f"||e.key==="F")document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()});
+</script>
+</body>
+</html>

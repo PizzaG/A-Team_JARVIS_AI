@@ -1,0 +1,49 @@
+{
+  "name": "JARVIS",
+  "ollama": {
+    "url": "http://127.0.0.1:11434/api/chat",
+    "model": "qwen3.6:27b",
+    "temperature": 0.7,
+    "max_tokens": 4096,
+    "timeout": 300,
+    "max_tool_rounds": 20,
+    "think": true,
+    "num_ctx": 32768
+  },
+  "voice": {
+    "whisper_model": "tiny.en",
+    "whisper_device": "cpu",
+    "whisper_compute_type": "int8",
+    "kokoro_voice": "bf_emma",
+    "sample_rate": 24000,
+    "speed": 1.10,
+    "speech_normalization": true,
+    "enabled": true
+  },
+  "push_to_talk": {
+    "key": "f4",
+    "sample_rate": 16000
+  },
+  "visuals": {
+    "ai_visualizer_bus": "ai-visualizer",
+    "barehands_state": "barehands/state",
+    "enabled": true,
+    "face": "a-team-ops",
+    "barehands_enabled": true
+  },
+  "research": {
+    "Root": "Project_Folder",
+    "max_results": 500,
+    "internet": true,
+    "max_web_results": 10
+  },
+  "memory": {
+    "enabled": true,
+    "Root": "Memory_Vault",
+    "daily_notes": true,
+    "auto_log": true
+  },
+  "display": {
+    "show_tool_activity": false
+  }
+}

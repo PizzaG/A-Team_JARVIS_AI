@@ -1,0 +1,12 @@
+requests>=2.31
+ollama>=0.6.0
+numpy>=1.26
+scipy>=1.11
+sounddevice>=0.4.6
+pynput>=1.7.6
+faster-whisper>=1.1
+kokoro>=0.9.4
+misaki[en]>=0.9.4
+soundfile>=0.12
+torch>=2.0
+ddgs>=9.0

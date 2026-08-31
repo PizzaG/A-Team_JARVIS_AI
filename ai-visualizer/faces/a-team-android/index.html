@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A-Team Android Command</title>
+<style>
+:root{--g:#78c83f;--g2:#b8ff75;--r:#e63946;--ink:#e9f4ed;--dim:#68776e;--mono:"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;cursor:none}
+body{font-family:var(--mono);color:var(--ink)}
+#stage{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;object-position:center}
+#shade{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.55) 100%);pointer-events:none}
+#scan{position:fixed;inset:0;pointer-events:none;opacity:.16;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 4px)}
+#hud{position:fixed;inset:0;pointer-events:none}
+.corner{position:absolute;width:42px;height:42px;border-color:rgba(120,200,63,.5)}
+.tl{top:20px;left:20px;border-left:2px solid;border-top:2px solid}.tr{top:20px;right:20px;border-right:2px solid;border-top:2px solid}
+.bl{bottom:20px;left:20px;border-left:2px solid;border-bottom:2px solid}.br{bottom:20px;right:20px;border-right:2px solid;border-bottom:2px solid}
+#state{position:absolute;right:48px;top:36px;text-align:right;font-size:clamp(12px,1vw,19px);letter-spacing:.4em}
+#sub{margin-top:7px;color:var(--g2);font-size:8px;letter-spacing:.22em}
+#brand{position:absolute;left:48px;top:35px;font-size:clamp(17px,1.45vw,30px);letter-spacing:.12em}
+#brand b{color:var(--r)}#brand small{display:block;margin-top:6px;color:var(--dim);font-size:7px;letter-spacing:.32em}
+.panel{position:absolute;padding:9px 12px;background:rgba(0,5,2,.58);border:1px solid rgba(120,200,63,.15);font-size:8px;line-height:1.8;min-width:190px}
+.panel:before{content:"";position:absolute;top:-1px;left:-1px;width:45px;height:2px;background:var(--r)}
+.head{color:var(--g2);letter-spacing:.22em;margin-bottom:4px}
+.row{display:flex;justify-content:space-between;gap:25px}.dim{color:var(--dim)}.ok{color:var(--g2)}
+#left{left:43px;top:31%;}#right{right:43px;top:31%}
+#bottom{left:50%;bottom:35px;transform:translateX(-50%);width:min(440px,40vw);text-align:left}
+#voice{position:absolute;left:43px;bottom:35px;width:220px;height:65px;border:1px solid rgba(230,57,70,.2);padding:8px 10px;background:rgba(0,0,0,.45)}
+#wave{height:34px;display:flex;align-items:center;gap:2px;margin-top:3px}
+#wave i{display:block;width:3px;height:4px;background:var(--r);border-radius:3px;box-shadow:0 0 7px rgba(230,57,70,.5)}
+#hint{position:absolute;right:43px;bottom:35px;color:var(--dim);font-size:7px;letter-spacing:.2em;text-align:right}
+#hint b{color:var(--g2);font-weight:normal}
+#pulse{position:absolute;left:50%;top:50%;width:min(35vw,570px);height:min(35vw,570px);transform:translate(-50%,-50%);border:1px solid rgba(120,200,63,.16);border-radius:50%;box-shadow:0 0 60px rgba(120,200,63,.05);animation:spin 24s linear infinite;pointer-events:none}
+#pulse:before,#pulse:after{content:"";position:absolute;inset:8%;border:1px dashed rgba(120,200,63,.1);border-radius:50%}
+#pulse:after{inset:27%;border-color:rgba(230,57,70,.12)}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+body.speaking #pulse{border-color:rgba(185,140,255,.45);box-shadow:0 0 90px rgba(185,140,255,.12)}
+body.listening #pulse{border-color:rgba(88,223,255,.45);box-shadow:0 0 90px rgba(88,223,255,.1)}
+body.thinking #pulse{border-color:rgba(255,211,107,.42);animation-duration:7s}
+</style>
+</head>
+<body>
+<img id="stage" src="a-team-android-hud.png" alt="">
+<div id="shade"></div><div id="scan"></div>
+<div id="pulse"></div>
+<div id="hud">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div id="brand"><b>A-TEAM</b> // ANDROID OS<small>DIGITAL SOLUTIONS // J.A.R.V.I.S. COMMAND INTERFACE</small></div>
+  <div id="state">IDLE<div id="sub">ANDROID OS ONLINE // JARVIS LINKED</div></div>
+
+  <div class="panel" id="left">
+    <div class="head">ANDROID OS // FIELD STATUS</div>
+    <div class="row"><span class="dim">PLATFORM</span><span class="ok">ANDROID</span></div>
+    <div class="row"><span class="dim">JARVIS</span><span class="ok">BOUND</span></div>
+    <div class="row"><span class="dim">ADB</span><span class="ok">CONNECTED</span></div>
+    <div class="row"><span class="dim">BOOT</span><span class="ok">VERIFIED</span></div>
+    <div class="row"><span class="dim">SECURITY</span><span class="ok">ENFORCING</span></div>
+    <div class="row"><span class="dim">MODE</span><span>LOCAL-FIRST</span></div>
+  </div>
+
+  <div class="panel" id="right">
+    <div class="head">A-TEAM SYSTEM BUS</div>
+    <div class="row"><span class="dim">CPU</span><span id="cpu">12%</span></div>
+    <div class="row"><span class="dim">RAM</span><span id="ram">38%</span></div>
+    <div class="row"><span class="dim">AI CORE</span><span id="ai">18%</span></div>
+    <div class="row"><span class="dim">VOICE</span><span class="ok">KOKORO</span></div>
+    <div class="row"><span class="dim">NETWORK</span><span class="ok">SECURE</span></div>
+    <div class="row"><span class="dim">THREAT</span><span class="ok">ZERO</span></div>
+  </div>
+
+  <div id="voice"><div class="head">VOICE BUS // KOKORO OUTPUT</div><div id="wave"></div></div>
+  <div id="bottom"><span style="color:#78c83f">a-team@android:~$</span> <span id="term">jarvis status</span><br>
+    <span style="color:#68776e">LOCAL AI // ANDROID CORE // A-TEAM COMMAND LINK <span style="color:#b8ff75">READY</span></span></div>
+  <div id="hint"><b>[SPACE]</b> CINEMATIC &nbsp; <b>[C]</b> CINEMATIC &nbsp; <b>[F]</b> FULLSCREEN</div>
+</div>
+
+<script src="../../core.js"></script>
+<script>
+"use strict";
+const Q=new URLSearchParams(location.search),SHOT=Q.get("shot");
+const $=id=>document.getElementById(id);
+let last="idle",now=0;
+AV.init({});
+AV.ready(a=>{document.title=(a.label||"A-Team Android")+" // A-Team";});
+for(let i=0;i<42;i++){const e=document.createElement("i");$("wave").appendChild(e)}
+
+function sync(){
+  const s=AV.state;
+  document.body.classList.toggle("speaking",s==="speaking");
+  document.body.classList.toggle("listening",s==="listening");
+  document.body.classList.toggle("thinking",s==="thinking");
+  const name=s==="thinking"?"THINKING":s==="speaking"?"SPEAKING":s==="listening"?"LISTENING":"IDLE";
+  $("state").firstChild.textContent=name;
+  $("sub").textContent=s==="idle"?"ANDROID OS ONLINE // JARVIS LINKED":name+" // JARVIS ACTIVE";
+  $("term").textContent=s==="thinking"?"jarvis process --working":s==="speaking"?"kokoro --transmit":"jarvis status";
+}
+function frame(dt){
+  AV.tick(dt);now+=dt;
+  if(AV.state!==last){last=AV.state;sync()}
+  const e=AV.state==="thinking"?1:AV.state==="speaking"?Math.min(1,.35+.65*AV.level):AV.state==="listening"?.55:.18;
+  $("cpu").textContent=Math.round(10+e*62)+"%";
+  $("ram").textContent=Math.round(36+e*25)+"%";
+  $("ai").textContent=Math.round(12+e*86)+"%";
+  [...$("wave").children].forEach((x,i)=>{
+    x.style.height=(3+Math.abs(Math.sin(now*.012+i*.73))*(5+AV.level*25))+"px";
+  });
+}
+sync();
+if(SHOT)AV.shotRun(frame);else{
+  let lastT=performance.now();
+  function loop(t){const dt=Math.min(50,t-lastT);lastT=t;frame(dt);requestAnimationFrame(loop)}
+  requestAnimationFrame(loop);
+}
+addEventListener("keydown",e=>{
+  if(e.code==="Space"||e.key==="c"||e.key==="C"){e.preventDefault();document.body.classList.toggle("cine")}
+  if(e.key==="f"||e.key==="F")document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+});
+</script>
+</body>
+</html>

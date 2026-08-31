@@ -6,15 +6,25 @@ rem
 rem Your barehands.json is yours: nothing in this script can touch or overwrite it.
 rem Safe to run any time; when nothing is new it just says so.
 
-rem run from a temp copy so updating this very file mid-run cannot garble it
-if "%~1"=="__run__" goto run
-copy /y "%~f0" "%TEMP%\barehands-update.bat" >nul
-call "%TEMP%\barehands-update.bat" __run__ "%~dp0"
-exit /b %errorlevel%
+rem NO SELF-RELAUNCH, and the reason is worth keeping.
+rem
+rem cmd reads a .bat by byte offset, so a script that pulls a new copy of
+rem ITSELF mid-run can garble from that point on. This used to guard against
+rem that by copying itself into LOCALAPPDATA and running the copy.
+rem
+rem Copying yourself somewhere and running the copy is a shape security
+rem software is built to distrust, and it cannot see why you did it. On
+rem some machines that stopped the install outright: the scanner held this
+rem file open and the unpack could not write it.
+rem
+rem The guard was never worth that. It only mattered on an update that
+rem changed this very script, and by then the pull had already succeeded.
+rem The worst case now is an odd looking line at the very end. If you ever
+rem see one, just run this again.
 
-:run
+
 setlocal
-cd /d "%~2"
+cd /d "%~dp0"
 set CFG=barehands.json
 
 if exist ".git\" goto havegit

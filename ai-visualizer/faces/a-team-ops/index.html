@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A-Team Ops</title>
+<style>
+:root{
+  --red:#ff263f;
+  --red2:#ff6675;
+  --green:#55ef88;
+  --cyan:#47dfff;
+  --amber:#ffb04a;
+  --white:#e7ecee;
+  --dim:#6b767c;
+  --black:#020304;
+  --panel:rgba(4,7,8,.82);
+  --mono:"SF Mono",Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#020304;color:var(--white);font-family:var(--mono);cursor:none}
+#stage{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+#scan,#vignette{position:fixed;inset:0;pointer-events:none}
+#scan{
+  z-index:20;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 4px);
+  mix-blend-mode:screen;
+}
+#vignette{
+  z-index:21;
+  background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,.82) 100%);
+}
+.hud{position:fixed;inset:0;z-index:10;pointer-events:none}
+body.cine .hud{opacity:0;transition:opacity .4s}
+.frame{position:absolute;inset:18px;border:1px solid rgba(255,38,63,.28)}
+.frame:before,.frame:after{content:"";position:absolute;inset:9px;border:1px solid rgba(255,255,255,.035)}
+.corner{position:absolute;width:44px;height:44px;border-color:var(--red)}
+.tl{top:-1px;left:-1px;border-left:2px solid;border-top:2px solid}
+.tr{top:-1px;right:-1px;border-right:2px solid;border-top:2px solid}
+.bl{bottom:-1px;left:-1px;border-left:2px solid;border-bottom:2px solid}
+.br{bottom:-1px;right:-1px;border-right:2px solid;border-bottom:2px solid}
+
+.top{position:absolute;left:48px;right:48px;top:34px;height:58px;display:flex;align-items:flex-start;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{
+  width:55px;height:55px;border:2px solid var(--red);display:grid;place-items:center;
+  color:var(--red);font-size:43px;font-weight:900;line-height:1;transform:skew(-7deg);
+  text-shadow:0 0 20px rgba(255,38,63,.35);
+}
+.brandtext .name{font-size:clamp(16px,1.25vw,25px);letter-spacing:.27em;font-weight:800}
+.brandtext .sub{margin-top:7px;color:var(--dim);font-size:clamp(8px,.58vw,11px);letter-spacing:.22em}
+.brandtext b{color:var(--red);font-weight:normal}
+.clock{text-align:right}
+.clock .title{color:var(--red2);font-size:clamp(10px,.7vw,14px);letter-spacing:.25em}
+.clock .time{margin-top:7px;font-size:clamp(11px,.72vw,14px);letter-spacing:.16em}
+.clock .link{margin-top:5px;color:var(--green);font-size:9px;letter-spacing:.2em}
+
+.panel{
+  position:absolute;background:linear-gradient(135deg,rgba(7,10,11,.86),rgba(1,3,4,.7));
+  border:1px solid rgba(255,38,63,.35);
+  box-shadow:inset 0 0 22px rgba(255,38,63,.025);
+  overflow:hidden;
+}
+.panel:before{
+  content:"";position:absolute;left:0;top:0;width:42%;height:1px;background:var(--red);
+}
+.ptitle{padding:12px 15px 8px;color:var(--red2);font-size:clamp(9px,.62vw,12px);letter-spacing:.2em}
+.pbody{padding:0 15px 13px;color:#adb6ba;font-size:clamp(8px,.55vw,11px);line-height:1.8}
+.green{color:var(--green)} .red{color:var(--red2)} .cyan{color:var(--cyan)} .amber{color:var(--amber)} .white{color:var(--white)}
+.bar{height:5px;background:rgba(255,255,255,.06);margin-top:4px;position:relative}
+.bar i{display:block;height:100%;background:var(--red);box-shadow:0 0 8px rgba(255,38,63,.45)}
+.bar.green i{background:var(--green);box-shadow:0 0 8px rgba(85,239,136,.4)}
+.row{display:flex;justify-content:space-between;gap:15px}
+.k{color:var(--dim)}
+.v{color:#cbd1d3}
+
+#status{left:48px;top:118px;width:265px;height:230px}
+#voiceIn{left:48px;top:362px;width:265px;height:164px}
+#network{left:48px;top:540px;width:265px;height:190px}
+
+#terminal{right:48px;top:118px;width:340px;height:290px}
+#process{right:48px;top:422px;width:340px;height:142px}
+#tools{right:48px;top:578px;width:340px;height:152px}
+
+#coreLabel{
+  position:absolute;left:50%;top:113px;transform:translateX(-50%);
+  color:var(--dim);font-size:clamp(8px,.58vw,11px);letter-spacing:.42em;white-space:nowrap
+}
+#coreState{
+  position:absolute;left:50%;bottom:155px;transform:translateX(-50%);
+  color:var(--green);font-size:clamp(13px,1vw,20px);letter-spacing:.42em;white-space:nowrap
+}
+#quote{
+  position:absolute;left:50%;bottom:105px;transform:translateX(-50%);
+  color:#aeb6b9;font-size:clamp(8px,.58vw,11px);letter-spacing:.18em;white-space:nowrap;
+}
+#quote b{color:var(--red2);font-weight:normal}
+
+#footer{
+  position:absolute;left:48px;right:48px;bottom:34px;
+  display:flex;justify-content:space-between;color:var(--dim);
+  font-size:clamp(8px,.56vw,11px);letter-spacing:.2em;
+}
+#footer .hot{color:var(--red2)}
+
+#androidBadge{
+  position:absolute;left:calc(50% - 230px);top:158px;width:74px;height:74px;
+  border:1px solid rgba(71,223,255,.38);display:grid;place-items:center;
+  color:var(--cyan);font-size:32px;opacity:.9;
+}
+#androidBadge:after{content:"ANDROID";position:absolute;top:82px;font-size:8px;letter-spacing:.18em;color:var(--cyan)}
+#linuxBadge{
+  position:absolute;right:calc(50% - 230px);top:158px;width:74px;height:74px;
+  border:1px solid rgba(85,239,136,.35);display:grid;place-items:center;
+  color:var(--green);font-size:28px;opacity:.9;
+}
+#linuxBadge:after{content:"LINUX";position:absolute;top:82px;font-size:8px;letter-spacing:.18em;color:var(--green)}
+
+#cross{
+  position:absolute;left:50%;top:50%;width:430px;height:430px;transform:translate(-50%,-50%);
+  opacity:.55;
+}
+#cross:before,#cross:after{content:"";position:absolute;background:rgba(255,38,63,.18)}
+#cross:before{left:50%;top:0;width:1px;height:100%}
+#cross:after{top:50%;left:0;height:1px;width:100%}
+.ring{position:absolute;inset:0;border:1px solid rgba(255,38,63,.2);border-radius:50%}
+.r1{inset:5%}.r2{inset:17%;border-style:dashed}.r3{inset:31%;border-color:rgba(71,223,255,.25)}
+.r4{inset:44%;border-color:rgba(85,239,136,.18)}
+.tick{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%)}
+.tick:before{
+  content:"";position:absolute;left:50%;top:-3px;width:1px;height:22px;background:var(--red);
+  box-shadow:0 0 10px var(--red)
+}
+.spin1{animation:spin 24s linear infinite}
+.spin2{animation:spin 13s linear infinite reverse}
+.spin3{animation:spin 8s linear infinite}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+#core{
+  position:absolute;left:50%;top:50%;width:210px;height:210px;transform:translate(-50%,-50%);
+  display:grid;place-items:center;
+}
+.corePlate{
+  width:164px;height:164px;border:2px solid rgba(255,38,63,.72);
+  transform:rotate(45deg);background:rgba(3,5,6,.94);
+  box-shadow:0 0 30px rgba(255,38,63,.12),inset 0 0 30px rgba(255,38,63,.05);
+  display:grid;place-items:center;
+}
+.coreA{
+  transform:rotate(-45deg);font-size:126px;font-weight:900;line-height:1;
+  color:var(--red);text-shadow:0 0 25px rgba(255,38,63,.5)
+}
+.coreA span{display:block;font-size:8px;text-align:center;letter-spacing:.45em;color:var(--white);margin-top:-17px;margin-left:8px}
+#pulse{
+  position:absolute;inset:0;border:1px solid rgba(255,38,63,.35);border-radius:50%;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{50%{transform:scale(1.1);opacity:.2}}
+
+.wave{
+  height:46px;display:flex;align-items:center;gap:3px;overflow:hidden;
+}
+.wave i{width:3px;background:var(--red);display:block;opacity:.9}
+.netmap{height:72px;position:relative;margin-top:2px;overflow:hidden}
+.netmap:before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 18% 55%,rgba(255,38,63,.8) 0 2px,transparent 3px),
+    radial-gradient(circle at 48% 35%,rgba(255,38,63,.8) 0 2px,transparent 3px),
+    radial-gradient(circle at 73% 62%,rgba(255,38,63,.8) 0 2px,transparent 3px),
+    linear-gradient(22deg,transparent 48%,rgba(255,38,63,.25) 49%,transparent 50%),
+    linear-gradient(-18deg,transparent 48%,rgba(71,223,255,.16) 49%,transparent 50%);
+}
+.netmap:after{
+  content:"";position:absolute;left:8%;right:8%;top:50%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--red),transparent);
+  box-shadow:0 -22px 0 rgba(71,223,255,.14),0 20px 0 rgba(85,239,136,.12);
+  animation:netSweep 2.2s linear infinite;
+}
+@keyframes netSweep{to{transform:translateX(10%);opacity:.15}}
+
+.log{font-size:9px;line-height:1.7;white-space:nowrap}
+.prompt{color:var(--green)}
+.cursor{display:inline-block;width:7px;height:11px;background:var(--green);vertical-align:-2px;animation:blink .8s steps(2,start) infinite}
+@keyframes blink{50%{opacity:.1}}
+
+.toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+.toolgrid span{display:flex;justify-content:space-between}
+.toolgrid b{font-weight:normal;color:var(--green)}
+
+#modeDot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);
+  margin-left:7px;box-shadow:0 0 12px currentColor
+}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="scan"></div><div id="vignette"></div>
+
+<div class="hud">
+  <div class="frame">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  </div>
+
+  <div class="top">
+    <div class="brand">
+      <div class="logo">A</div>
+      <div class="brandtext">
+        <div class="name">A-TEAM DIGITAL SOLUTIONS</div>
+        <div class="sub">LOCAL INTELLIGENCE <b>///</b> ANDROID + LINUX OPERATIONS</div>
+      </div>
+    </div>
+    <div class="clock">
+      <div class="title">J.A.R.V.I.S. OPS CONSOLE</div>
+      <div class="time" id="clock">00:00:00</div>
+      <div class="link">● LOCAL LINK SECURE</div>
+    </div>
+  </div>
+
+  <section class="panel" id="status">
+    <div class="ptitle">SYSTEM STATUS <span id="modeDot"></span></div>
+    <div class="pbody">
+      <div class="row"><span class="k">CORE</span><span class="green" id="coreName">JARVIS</span></div>
+      <div class="row"><span class="k">MODEL</span><span class="v">QWEN LOCAL</span></div>
+      <div class="row"><span class="k">MEMORY</span><span class="green">READY</span></div>
+      <div class="row"><span class="k">TOOLS</span><span class="green">ONLINE</span></div>
+      <div style="margin-top:7px">CPU <span class="v" id="cpuTxt">12%</span><div class="bar"><i id="cpuBar" style="width:12%"></i></div></div>
+      <div style="margin-top:7px">MEMORY <span class="v" id="memTxt">31%</span><div class="bar"><i id="memBar" style="width:31%"></i></div></div>
+      <div style="margin-top:7px">NEURAL LOAD <span class="amber" id="neuralTxt">25%</span><div class="bar"><i id="neuralBar" style="width:25%"></i></div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="voiceIn">
+    <div class="ptitle">VOICE INPUT</div>
+    <div class="pbody">
+      <div class="wave" id="waveIn"></div>
+      <div class="row"><span class="k">WHISPER</span><span class="cyan">TINY.EN / CPU</span></div>
+      <div class="row"><span class="k">SIGNAL</span><span class="v" id="inLevel">0%</span></div>
+      <div class="bar"><i id="inBar" style="width:0%"></i></div>
+      <div class="row" style="margin-top:5px"><span class="k">CHANNEL</span><span class="green">F4 PTT</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="network">
+    <div class="ptitle">NETWORK / LOCAL BUS</div>
+    <div class="pbody">
+      <div class="row"><span class="k">STATUS</span><span class="green">CONNECTED</span></div>
+      <div class="row"><span class="k">PROTOCOL</span><span class="cyan">HTTP / WS</span></div>
+      <div class="netmap"></div>
+      <div class="row"><span class="k">PACKETS</span><span class="v" id="packets">00000/s</span></div>
+      <div class="row"><span class="k">LATENCY</span><span class="green" id="latency">18ms</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="terminal">
+    <div class="ptitle">LINUX TERMINAL / COMMAND STREAM</div>
+    <div class="pbody log" id="terminalLog">
+      <div><span class="prompt">jarvis@a-team:~$</span> whoami</div>
+      <div>jarvis</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> uname -a</div>
+      <div>Linux local-jarvis x86_64</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> systemctl status jarvis</div>
+      <div><span class="green">● JARVIS ACTIVE</span></div>
+      <div><span class="prompt">jarvis@a-team:~$</span> ls Project_Folder/Tools</div>
+      <div class="cyan">agent_tools.py  research_tools.py</div>
+      <div class="green">memory.py  local_voice.py</div>
+      <div><span class="prompt">jarvis@a-team:~$</span> <span id="cmd">_</span><span class="cursor"></span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="process">
+    <div class="ptitle">ACTIVE PROCESSES</div>
+    <div class="pbody log">
+      <div class="row"><span class="green">ollama / qwen</span><span id="p1">28.7%</span></div>
+      <div class="row"><span class="cyan">whisper / tiny.en</span><span id="p2">1.1%</span></div>
+      <div class="row"><span class="red">kokoro / tts</span><span id="p3">1.5%</span></div>
+      <div class="row"><span class="amber">ai-visualizer</span><span id="p4">1.2%</span></div>
+      <div class="row"><span class="green">barehands</span><span id="p5">0.9%</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="tools">
+    <div class="ptitle">TOOLS / SERVICES</div>
+    <div class="pbody toolgrid">
+      <span>FILESYSTEM <b>ONLINE</b></span>
+      <span>MEMORY <b>ONLINE</b></span>
+      <span>PROJECT TOOLS <b>ONLINE</b></span>
+      <span>WEB RESEARCH <b>ONLINE</b></span>
+      <span>VOICE <b id="voiceState">READY</b></span>
+      <span>VISUALIZER <b>ONLINE</b></span>
+      <span>HANDS <b>ONLINE</b></span>
+      <span>OLLAMA <b>ONLINE</b></span>
+    </div>
+  </section>
+
+  <div id="androidBadge">▣</div>
+  <div id="linuxBadge">⌁</div>
+
+  <div id="coreLabel">A-TEAM DIGITAL SOLUTIONS // COMMAND CORE</div>
+  <div id="cross">
+    <i class="ring r1"></i><i class="ring r2 spin1"></i><i class="ring r3 spin2"></i><i class="ring r4 spin3"></i>
+    <i class="tick"></i>
+  </div>
+
+  <div id="core">
+    <div id="pulse"></div>
+    <div class="corePlate">
+      <div class="coreA">A<span>J.A.R.V.I.S.</span></div>
+    </div>
+  </div>
+
+  <div id="coreState">IDLE <span id="modeDot2"></span></div>
+  <div id="quote">“I LOVE IT WHEN A PLAN COMES TOGETHER.” <b>— HANNIBAL</b></div>
+
+  <div id="footer">
+    <div>COMMAND BUS — <span class="hot">ACTIVE</span></div>
+    <div>SPACE / C — CINEMATIC OPS</div>
+    <div>F — FULLSCREEN</div>
+  </div>
+</div>
+
+<script src="../../core.js"></script>
+<script>
+"use strict";
+
+const Q=new URLSearchParams(location.search);
+const SHOT=Q.get("shot");
+let seed=parseInt(Q.get("seed")||"73",10);
+
+function mulberry32(a){
+  return function(){
+    a|=0;a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return((t^t>>>14)>>>0)/4294967296;
+  }
+}
+const rnd=mulberry32(seed);
+const $=id=>document.getElementById(id);
+
+AV.init({});
+AV.ready(a=>{
+  document.title=a.label+" — A-Team Ops";
+  $("coreName").textContent=a.label.toUpperCase();
+});
+
+const cv=$("stage"),ctx=cv.getContext("2d");
+let W=0,H=0,now=0,energy=.25,level=0,statePrev="idle",cine=null,cam={x:0,y:0,z:1};
+let bg=null,nodes=[],links=[],packets=[],stars=[];
+
+function R(a,b){return a+rnd()*(b-a)}
+function rgba(r,g,b,a){return`rgba(${r},${g},${b},${a})`}
+function ease(c,t,tau,dt){return c+(t-c)*(1-Math.exp(-dt/tau))}
+function stateColor(){
+  if(AV.state==="listening")return[71,223,255];
+  if(AV.state==="thinking")return[255,176,74];
+  return[255,38,63];
+}
+function targetEnergy(){
+  if(AV.state==="thinking")return 1;
+  if(AV.state==="speaking")return .45+.55*Math.max(0,AV.level);
+  if(AV.state==="listening")return .55;
+  return .25;
+}
+
+function build(){
+  nodes=[];links=[];packets=[];stars=[];
+  const cx=W/2,cy=H/2,N=56;
+  for(let i=0;i<N;i++){
+    const a=R(0,Math.PI*2),rad=Math.min(W,H)*R(.15,.39);
+    nodes.push({x:cx+Math.cos(a)*rad,y:cy+Math.sin(a)*rad,r:R(1.5,4),phase:R(0,6.28),hot:0});
+  }
+  for(let i=0;i<N;i++){
+    const choices=[];
+    for(let j=0;j<N;j++)if(i!==j){
+      const d=Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y);
+      if(d<Math.min(W,H)*.15)choices.push([d,j]);
+    }
+    choices.sort((a,b)=>a[0]-b[0]);
+    choices.slice(0,2+(i%3===0?1:0)).forEach(([d,j])=>{
+      if(!links.some(l=>(l.a===i&&l.b===j)||(l.a===j&&l.b===i)))links.push({a:i,b:j,hot:0});
+    });
+  }
+  for(let i=0;i<180;i++)stars.push({x:rnd()*W,y:rnd()*H,s:R(.2,1.4),a:R(.025,.16)});
+  renderBG();
+}
+function renderBG(){
+  bg=document.createElement("canvas");bg.width=W;bg.height=H;
+  const g=bg.getContext("2d");
+  g.fillStyle="#020304";g.fillRect(0,0,W,H);
+  const step=Math.max(24,Math.round(Math.min(W,H)/30));
+  g.strokeStyle="rgba(255,255,255,.022)";g.lineWidth=1;g.beginPath();
+  for(let x=0;x<W;x+=step){g.moveTo(x,0);g.lineTo(x,H)}
+  for(let y=0;y<H;y+=step){g.moveTo(0,y);g.lineTo(W,y)}
+  g.stroke();
+  g.strokeStyle="rgba(255,38,63,.045)";
+  for(let r=step*5;r<Math.max(W,H);r+=step*5){
+    g.beginPath();g.arc(W/2,H/2,r,0,Math.PI*2);g.stroke();
+  }
+  stars.forEach(s=>{g.fillStyle=`rgba(220,225,228,${s.a})`;g.fillRect(s.x,s.y,s.s,s.s)});
+}
+
+function startCine(){
+  if(cine)return;
+  const cx=W/2,cy=H/2;
+  const pts=[
+    {x:cx+W*.2,y:cy-H*.12,z:2.2},
+    {x:cx-W*.2,y:cy+H*.1,z:2.55},
+    {x:cx+W*.12,y:cy+H*.18,z:2.7},
+    {x:cx,y:cy,z:1}
+  ];
+  let from={x:cx,y:cy,z:1};cine={t:0,segs:[]};
+  pts.forEach((to,i)=>{cine.segs.push({f:from,t:to,d:i===pts.length-1?5000:3800});from=to});
+  document.body.classList.add("cine");
+}
+function endCine(){cine=null;cam={x:W/2,y:H/2,z:1};document.body.classList.remove("cine")}
+function updateCine(dt){
+  cine.t+=dt;let t=cine.t;
+  for(const s of cine.segs){
+    if(t<=s.d){
+      const p=t/s.d,e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+      cam={x:s.f.x+(s.t.x-s.f.x)*e,y:s.f.y+(s.t.y-s.f.y)*e,z:s.f.z+(s.t.z-s.f.z)*e};
+      return;
+    }
+    t-=s.d;
+  }
+  endCine();
+}
+
+function syncHUD(){
+  const s=AV.state;
+  const label=s==="thinking"?"THINKING":s==="speaking"?"SPEAKING":s==="listening"?"LISTENING":"IDLE";
+  $("coreState").firstChild.textContent=label+" ";
+  const color=s==="listening"?"var(--cyan)":s==="thinking"?"var(--amber)":"var(--red)";
+  $("coreState").style.color=color;
+  $("modeDot").style.background=color;
+  $("modeDot2").style.background=color;
+  $("modeDot").style.color=color;
+  $("voiceState").textContent=s==="listening"?"RECEIVING":s==="speaking"?"TRANSMITTING":"READY";
+}
+
+function drawNetwork(g,dt){
+  const [r,gr,b]=stateColor();
+  links.forEach(l=>{
+    const a=nodes[l.a],c=nodes[l.b];
+    g.strokeStyle=rgba(r,gr,b,.045+l.hot*.34);g.lineWidth=1+l.hot*1.7;
+    g.beginPath();g.moveTo(a.x,a.y);g.lineTo(c.x,c.y);g.stroke();
+    l.hot*=Math.exp(-dt/420);
+  });
+  nodes.forEach(n=>{
+    const pulse=.5+.5*Math.sin(now/700+n.phase),rr=n.r*(1+.3*pulse*energy);
+    const glow=g.createRadialGradient(n.x,n.y,0,n.x,n.y,rr*7);
+    glow.addColorStop(0,rgba(r,gr,b,.16+n.hot*.4));glow.addColorStop(1,"rgba(0,0,0,0)");
+    g.fillStyle=glow;g.fillRect(n.x-rr*7,n.y-rr*7,rr*14,rr*14);
+    g.fillStyle=rgba(220,228,230,.45+n.hot*.5);g.beginPath();g.arc(n.x,n.y,rr,0,Math.PI*2);g.fill();
+    n.hot*=Math.exp(-dt/500);
+  });
+}
+function spawnPacket(){
+  if(!links.length)return;
+  packets.push({l:links[(rnd()*links.length)|0],t:0,s:R(.00035,.0008),trail:R(.05,.12)});
+}
+function drawPackets(g,dt){
+  const [r,gr,b]=stateColor();
+  packets=packets.filter(p=>{
+    p.t+=p.s*dt*(.7+4*energy);
+    const a=nodes[p.l.a],c=nodes[p.l.b];
+    if(p.t>=1){nodes[p.l.b].hot=1;p.l.hot=1;return false}
+    const x=a.x+(c.x-a.x)*p.t,y=a.y+(c.y-a.y)*p.t;
+    const q=Math.max(0,p.t-p.trail),tx=a.x+(c.x-a.x)*q,ty=a.y+(c.y-a.y)*q;
+    g.strokeStyle=rgba(r,gr,b,.85);g.lineWidth=1.5+2*energy;
+    g.beginPath();g.moveTo(tx,ty);g.lineTo(x,y);g.stroke();
+    g.fillStyle=rgba(255,240,242,.95);g.beginPath();g.arc(x,y,2+3*energy,0,Math.PI*2);g.fill();
+    return true;
+  });
+}
+function drawCore(g){
+  const cx=W/2,cy=H/2,[r,gr,b]=stateColor();
+  const base=Math.min(W,H)*.105*(1+.035*Math.sin(now/450)+.05*energy+.04*level);
+  const glow=g.createRadialGradient(cx,cy,0,cx,cy,base*2.8);
+  glow.addColorStop(0,rgba(r,gr,b,.18+.2*energy));
+  glow.addColorStop(.35,rgba(r,gr,b,.07+.1*energy));
+  glow.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=glow;g.fillRect(cx-base*3,cy-base*3,base*6,base*6);
+
+  g.save();g.translate(cx,cy);
+  for(let k=0;k<4;k++){
+    const rr=base*(1.0+k*.34);
+    g.save();g.rotate(now*(.00011+k*.000065)*(k%2?-1:1));
+    g.strokeStyle=rgba(r,gr,b,.22-k*.035);g.lineWidth=k===0?2:1;
+    g.setLineDash(k===1?[8,13]:k===3?[2,18]:[]);
+    g.beginPath();g.arc(0,0,rr,-Math.PI*.78,Math.PI*.56);g.stroke();g.restore();
+  }
+  g.restore();
+}
+function drawVoiceWave(){
+  const bars=document.querySelectorAll("#waveIn i");
+  bars.forEach((el,i)=>{
+    const base=4+Math.abs(Math.sin(now/90+i*1.7))*8;
+    const state=AV.state==="listening"?1.5:AV.state==="speaking"?1.1:.55;
+    el.style.height=Math.max(3,base+AV.level*30*state)+"px";
+  });
+}
+
+function frame(dt){
+  AV.tick(dt);now+=dt;
+  if(AV.state!==statePrev){statePrev=AV.state;syncHUD()}
+  energy=ease(energy,targetEnergy(),AV.state==="speaking"?130:500,dt);
+  level=ease(level,AV.level,90,dt);
+
+  if(rnd()<.007+.09*energy)spawnPacket();
+  if(AV.state==="thinking"&&rnd()<.15)spawnPacket();
+
+  $("clock").textContent=new Date().toLocaleTimeString([],{hour12:false});
+  const cpu=Math.round(10+energy*42+Math.abs(Math.sin(now/2200))*7);
+  const mem=Math.round(28+energy*16);
+  const neural=Math.round(energy*100);
+  $("cpuTxt").textContent=cpu+"%";$("cpuBar").style.width=cpu+"%";
+  $("memTxt").textContent=mem+"%";$("memBar").style.width=mem+"%";
+  $("neuralTxt").textContent=neural+"%";$("neuralBar").style.width=neural+"%";
+  const inPct=Math.round(Math.max(0,Math.min(100,AV.level*100)));
+  $("inLevel").textContent=inPct+"%";$("inBar").style.width=inPct+"%";
+  $("packets").textContent=String(Math.round(20+energy*170)).padStart(5,"0")+"/s";
+  $("latency").textContent=Math.round(12+energy*22)+"ms";
+  $("p1").textContent=(22+energy*16).toFixed(1)+"%";
+  $("p2").textContent=(.8+energy*1.8).toFixed(1)+"%";
+  $("p3").textContent=(1.1+energy*2).toFixed(1)+"%";
+  $("p4").textContent=(.8+energy*1.5).toFixed(1)+"%";
+  $("p5").textContent=(.6+energy*.8).toFixed(1)+"%";
+  drawVoiceWave();
+
+  if(cine)updateCine(dt);
+  ctx.clearRect(0,0,W,H);ctx.drawImage(bg,0,0);
+  ctx.save();
+  if(cine){ctx.translate(W/2,H/2);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y)}
+  const [r,gr,b]=stateColor();
+  const at=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.min(W,H)*.62);
+  at.addColorStop(0,rgba(r,gr,b,.045+.065*energy));at.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=at;ctx.fillRect(0,0,W,H);
+  drawNetwork(ctx,dt);drawPackets(ctx,dt);drawCore(ctx);ctx.restore();
+
+  const sy=((now/5400)%1.2)-.1;
+  const sweep=ctx.createLinearGradient(0,H*sy,0,H*(sy+.16));
+  sweep.addColorStop(0,"rgba(255,38,63,0)");
+  sweep.addColorStop(.5,rgba(r,gr,b,.045+.055*energy));
+  sweep.addColorStop(1,"rgba(255,38,63,0)");
+  ctx.fillStyle=sweep;ctx.fillRect(0,0,W,H);
+}
+
+function makeWave(){
+  const el=$("waveIn");
+  for(let i=0;i<48;i++){const s=document.createElement("i");s.style.height="4px";el.appendChild(s)}
+}
+function resize(){
+  if(cine)endCine();
+  const d=Math.min(devicePixelRatio||1,1.25);
+  W=cv.width=innerWidth*d;H=cv.height=innerHeight*d;
+  cv.style.width=innerWidth+"px";cv.style.height=innerHeight+"px";
+  build();
+}
+addEventListener("resize",resize);
+addEventListener("keydown",e=>{
+  if(e.code==="Space"||e.key==="c"||e.key==="C"){e.preventDefault();cine?endCine():startCine()}
+  if(e.key==="f"||e.key==="F"){
+    document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()
+  }
+});
+
+makeWave();resize();
+
+if(SHOT){
+  if(Q.get("cine")==="1")startCine();
+  AV.shotRun(frame);
+}else{
+  let last=performance.now();
+  function loop(ts){
+    const dt=Math.min(50,ts-last);last=ts;
+    frame(dt);requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

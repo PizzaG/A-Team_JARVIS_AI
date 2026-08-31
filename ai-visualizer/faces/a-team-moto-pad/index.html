@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<!--
+Moto Pad 2026 // A-Team
+Built as a two-file ai-visualizer face, using the supplied Circuit Board face
+as the interaction/runtime reference. The visual language is a fictional
+A-Team treatment of a premium 2026 Android tablet command console.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Moto Pad 2026 // A-Team</title>
+<style>
+:root{
+  --bg:#030405; --panel:#090b0d; --glass:rgba(18,21,24,.72);
+  --ink:#edf1f2; --dim:#697277; --line:#252b2f;
+  --red:#f2263d; --red2:#ff5264; --cyan:#53dfff;
+  --green:#51ed88; --amber:#f2b75a; --mono:"SF Mono",Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);cursor:none}
+body{font-family:var(--mono)}
+canvas#stage{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+.hud{position:fixed;inset:0;z-index:10;pointer-events:none}
+.frame{position:absolute;inset:18px;border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 0 80px rgba(0,0,0,.7)}
+.corner{position:absolute;width:42px;height:42px;border-color:var(--red)}
+.corner.tl{left:-1px;top:-1px;border-left:2px solid;border-top:2px solid}
+.corner.tr{right:-1px;top:-1px;border-right:2px solid;border-top:2px solid}
+.corner.bl{left:-1px;bottom:-1px;border-left:2px solid;border-bottom:2px solid}
+.corner.br{right:-1px;bottom:-1px;border-right:2px solid;border-bottom:2px solid}
+
+#brand{position:absolute;left:48px;top:38px}
+#brand .moto{font-size:12px;letter-spacing:.42em;color:#9ea7ab}
+#brand .title{margin-top:4px;font-size:clamp(18px,1.35vw,27px);letter-spacing:.18em;font-weight:600}
+#brand .title b{color:var(--red);font-weight:600}
+#brand .sub{margin-top:8px;font-size:8px;letter-spacing:.31em;color:var(--dim)}
+#brand .sub span{color:var(--green)}
+
+#topright{position:absolute;right:48px;top:37px;text-align:right}
+#device{font-size:10px;letter-spacing:.32em;color:#8d989c}
+#device strong{font-size:15px;color:var(--ink);letter-spacing:.08em}
+#time{margin-top:8px;font-size:12px;letter-spacing:.28em;color:var(--cyan)}
+#state{margin-top:8px;font-size:9px;letter-spacing:.35em;color:var(--green)}
+
+.panel{
+  position:absolute;background:linear-gradient(145deg,rgba(12,15,18,.88),rgba(4,6,8,.64));
+  border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(4px);
+  box-shadow:0 12px 40px rgba(0,0,0,.28),inset 0 0 22px rgba(255,255,255,.015);
+}
+.panel:before{content:"";position:absolute;left:0;right:62%;top:0;height:1px;background:var(--red)}
+.phead{padding:10px 12px 7px;font-size:8px;letter-spacing:.22em;color:var(--red2)}
+.pbody{padding:0 12px 11px;font-size:8px;line-height:1.7;color:#aeb8bc}
+.row{display:flex;justify-content:space-between;gap:8px}
+.dim{color:var(--dim)}.white{color:var(--ink)}.green{color:var(--green)}
+.red{color:var(--red2)}.cyan{color:var(--cyan)}.amber{color:var(--amber)}
+.bar{height:4px;background:#171b1e;margin:3px 0 7px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--red);box-shadow:0 0 10px rgba(242,38,61,.4)}
+.bar.cyan i{background:var(--cyan);box-shadow:0 0 10px rgba(83,223,255,.35)}
+.bar.green i{background:var(--green);box-shadow:0 0 10px rgba(81,237,136,.35)}
+.sep{height:1px;background:rgba(255,255,255,.07);margin:7px 0}
+
+#battery{left:42px;top:126px;width:235px;height:210px}
+#performance{left:42px;top:350px;width:235px;height:224px}
+#android{left:42px;top:588px;width:235px;height:194px}
+#network{right:42px;top:126px;width:235px;height:210px}
+#storage{right:42px;top:350px;width:235px;height:224px}
+#security{right:42px;top:588px;width:235px;height:194px}
+
+.badge{
+  width:72px;height:72px;margin:3px auto 7px;border-radius:18px;
+  display:grid;place-items:center;border:1px solid rgba(255,255,255,.13);
+  background:linear-gradient(145deg,#161a1e,#060809);
+  box-shadow:inset 0 0 20px rgba(255,255,255,.03),0 8px 24px rgba(0,0,0,.4);
+}
+.batteryIcon{width:37px;height:55px;border:2px solid #dce2e4;border-radius:6px;position:relative}
+.batteryIcon:before{content:"";position:absolute;left:10px;right:10px;top:-7px;height:4px;background:#dce2e4;border-radius:2px}
+.batteryIcon i{position:absolute;left:5px;right:5px;bottom:5px;height:68%;background:var(--green);border-radius:2px;box-shadow:0 0 12px rgba(81,237,136,.4)}
+.big{text-align:center;font-size:11px;letter-spacing:.22em}
+.center{text-align:center}
+
+#battery .percent{font-size:25px;color:var(--green);letter-spacing:.08em;margin-top:2px}
+
+#tablet{
+  position:absolute;left:50%;top:50%;width:min(47vw,720px);height:min(63vh,500px);
+  transform:translate(-50%,-50%);border-radius:28px;
+  background:linear-gradient(145deg,#1c2023,#080a0c 48%,#14181b);
+  border:2px solid #30363a;
+  box-shadow:0 28px 80px rgba(0,0,0,.8),0 0 70px rgba(242,38,61,.08),inset 0 0 28px rgba(255,255,255,.05);
+}
+#tablet:before{
+  content:"";position:absolute;inset:7px;border-radius:22px;border:1px solid rgba(255,255,255,.08);
+}
+#tablet:after{
+  content:"";position:absolute;left:8%;right:8%;top:5px;height:2px;
+  background:linear-gradient(90deg,transparent,#b9c0c4,transparent);opacity:.28;
+}
+#screen{
+  position:absolute;inset:20px;border-radius:17px;overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 48%,rgba(242,38,61,.10),transparent 30%),
+    linear-gradient(145deg,#070a0c,#020304 58%,#07090b);
+  border:1px solid rgba(255,255,255,.10);
+}
+#camera{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);width:8px;height:8px;
+  border-radius:50%;background:#050708;border:1px solid #31373a;z-index:3;
+  box-shadow:0 0 8px rgba(0,0,0,.9);
+}
+#speaker{position:absolute;right:11px;top:50%;width:2px;height:55px;transform:translateY(-50%);
+  background:repeating-linear-gradient(0deg,#343a3e 0 2px,transparent 2px 5px);border-radius:2px}
+#homeDot{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);width:32px;height:3px;border-radius:5px;background:#343a3e}
+
+#screenGrid{position:absolute;inset:0;background:
+ linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+ linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+background-size:34px 34px;opacity:.35}
+#screenHeader{position:absolute;left:24px;right:24px;top:19px;display:flex;justify-content:space-between;align-items:center}
+#screenHeader .left{font-size:8px;letter-spacing:.24em;color:#879095}
+#screenHeader .right{font-size:8px;letter-spacing:.16em;color:var(--green)}
+#core{
+  position:absolute;left:50%;top:50%;width:235px;height:235px;transform:translate(-50%,-50%);
+  display:grid;place-items:center;
+}
+#core .halo{position:absolute;inset:5px;border-radius:50%;
+  background:radial-gradient(circle,rgba(242,38,61,.17),transparent 67%);
+  animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.18);opacity:.45}}
+#core .ring{position:absolute;inset:25px;border:1px solid rgba(242,38,61,.35);border-radius:50%;animation:spin 13s linear infinite}
+#core .ring2{inset:45px;border:1px dashed rgba(83,223,255,.30);animation:spin 9s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+#core .disk{width:126px;height:126px;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 36% 30%,#30363a,#090b0d 57%,#030405);
+  border:2px solid var(--red);box-shadow:0 0 28px rgba(242,38,61,.22),inset 0 0 22px rgba(242,38,61,.08)}
+#core .A{font:900 italic 88px Georgia,serif;color:var(--red);text-shadow:0 0 22px rgba(242,38,61,.45);margin-top:-5px}
+#core .label{position:absolute;bottom:31px;font-size:7px;letter-spacing:.31em;color:#d5dcde}
+#coreTitle{position:absolute;left:50%;top:21%;transform:translateX(-50%);font-size:9px;letter-spacing:.32em;color:#778186;white-space:nowrap}
+#coreState{position:absolute;left:50%;bottom:20%;transform:translateX(-50%);font-size:11px;letter-spacing:.35em;color:var(--green)}
+#tabletTag{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);font-size:7px;letter-spacing:.28em;color:#667177;white-space:nowrap}
+
+#voice{
+  position:absolute;left:22px;bottom:20px;width:190px;height:76px;border:1px solid rgba(255,255,255,.08);
+  background:rgba(0,0,0,.25);padding:8px 10px
+}
+#voice .head{font-size:7px;letter-spacing:.2em;color:var(--red2)}
+#wave,#outwave{display:flex;align-items:center;gap:2px;height:30px}
+#wave i,#outwave i{display:block;width:3px;height:3px;background:var(--red);border-radius:2px}
+#outwave{position:absolute;right:22px;bottom:20px;width:190px;justify-content:flex-end}
+#outwave i{background:var(--cyan)}
+
+#terminal{
+  position:absolute;left:50%;bottom:21px;transform:translateX(-50%);
+  width:min(34vw,490px);height:78px;padding:9px 12px;
+  border:1px solid rgba(255,255,255,.08);background:rgba(2,3,4,.58);
+  font-size:7px;line-height:1.7;color:#7d888c;
+}
+#terminal .prompt{color:var(--green)}#terminal .cmd{color:#cfd5d7}
+
+#quick{
+  position:absolute;left:50%;top:88px;transform:translateX(-50%);display:flex;gap:8px;
+}
+.chip{padding:5px 8px;border:1px solid rgba(255,255,255,.09);font-size:7px;letter-spacing:.12em;color:#778187}
+.chip.live{border-color:rgba(81,237,136,.25);color:var(--green)}
+.chip.red{border-color:rgba(242,38,61,.25);color:var(--red2)}
+
+#footer{position:absolute;left:48px;right:48px;bottom:25px;display:flex;justify-content:space-between;
+font-size:7px;letter-spacing:.18em;color:#5f696e}
+#footer b{color:var(--red);font-weight:normal}
+
+body.cine .hud{opacity:.04;transition:opacity .5s}
+body.cine #tablet{transform:translate(-50%,-50%) scale(1.35);transition:transform .8s}
+.scan{position:fixed;inset:0;pointer-events:none;z-index:20;background:repeating-linear-gradient(0deg,rgba(255,255,255,.008) 0 1px,transparent 1px 4px)}
+.vig{position:fixed;inset:0;pointer-events:none;z-index:21;background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.72) 100%)}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div class="hud">
+  <div class="frame"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></div>
+
+  <div id="brand">
+    <div class="moto">MOTOROLA MOBILITY // A-TEAM EDITION</div>
+    <div class="title"><b>MOTO PAD</b> 2026</div>
+    <div class="sub">J.A.R.V.I.S. <span>///</span> ANDROID COMMAND TABLET <span>///</span> LOCAL INTELLIGENCE</div>
+  </div>
+
+  <div id="topright">
+    <div id="device">DEVICE <strong>MP26-A7</strong></div>
+    <div id="time">00:00:00</div>
+    <div id="state">SYSTEM READY</div>
+  </div>
+
+  <section class="panel" id="battery">
+    <div class="phead">POWER / CHARGING</div>
+    <div class="pbody">
+      <div class="badge"><div class="batteryIcon"><i id="batFill"></i></div></div>
+      <div class="percent" id="batteryPct">86%</div>
+      <div class="center green" id="chargeState">OPTIMIZED / CHARGING</div>
+      <div class="sep"></div>
+      <div class="row"><span class="dim">DRAW</span><span id="draw">18.4W</span></div>
+      <div class="row"><span class="dim">THERMAL</span><span id="batteryTemp">34°C</span></div>
+      <div class="row"><span class="dim">EST. LIFE</span><span class="green">9h 42m</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="performance">
+    <div class="phead">PERFORMANCE CORE</div>
+    <div class="pbody">
+      <div class="row"><span>CPU</span><span id="cpu">18%</span></div><div class="bar"><i id="cpuBar" style="width:18%"></i></div>
+      <div class="row"><span>GPU</span><span id="gpu">12%</span></div><div class="bar cyan"><i id="gpuBar" style="width:12%"></i></div>
+      <div class="row"><span>RAM</span><span id="ram">41%</span></div><div class="bar green"><i id="ramBar" style="width:41%"></i></div>
+      <div class="row"><span>AI NPU</span><span id="npu">24%</span></div><div class="bar"><i id="npuBar" style="width:24%"></i></div>
+      <div class="sep"></div>
+      <div class="row"><span class="dim">SUSTAINED</span><span class="green">NOMINAL</span></div>
+      <div class="row"><span class="dim">THERMAL</span><span id="perfTemp">39°C</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="android">
+    <div class="phead">ANDROID DEVICE BUS</div>
+    <div class="pbody">
+      <div class="row"><span>ANDROID</span><span class="green">ONLINE</span></div>
+      <div class="row"><span>ADB</span><span class="green">READY</span></div>
+      <div class="row"><span>FASTBOOT</span><span class="green">READY</span></div>
+      <div class="row"><span>J.A.R.V.I.S.</span><span class="cyan">BOUND</span></div>
+      <div class="sep"></div>
+      <div class="row"><span class="dim">DISPLAY</span><span>HIGH RES</span></div>
+      <div class="row"><span class="dim">PEN / TOUCH</span><span class="green">ACTIVE</span></div>
+      <div class="row"><span class="dim">ORIENTATION</span><span id="orientation">LANDSCAPE</span></div>
+      <div class="row"><span class="dim">USB</span><span class="green">HOST READY</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="network">
+    <div class="phead">NETWORK LINK</div>
+    <div class="pbody">
+      <div class="badge" style="border-radius:50%"><div style="font-size:30px;color:var(--cyan);text-shadow:0 0 15px rgba(83,223,255,.4)">⌁</div></div>
+      <div class="big center cyan">A-TEAM LOCAL</div>
+      <div class="sep"></div>
+      <div class="row"><span class="dim">LINK</span><span class="green">SECURE</span></div>
+      <div class="row"><span class="dim">LATENCY</span><span id="latency">12ms</span></div>
+      <div class="row"><span class="dim">RX</span><span id="rx">18.2 MB/s</span></div>
+      <div class="row"><span class="dim">TX</span><span id="tx">6.7 MB/s</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="storage">
+    <div class="phead">STORAGE / MEMORY VAULT</div>
+    <div class="pbody">
+      <div class="row"><span>INTERNAL</span><span id="storagePct">42%</span></div>
+      <div class="bar cyan"><i id="storageBar" style="width:42%"></i></div>
+      <div class="row"><span class="dim">USED</span><span>338 GB</span></div>
+      <div class="row"><span class="dim">AVAILABLE</span><span class="green">462 GB</span></div>
+      <div class="sep"></div>
+      <div class="row"><span>MEMORY VAULT</span><span class="green">READY</span></div>
+      <div class="row"><span>CONTEXT CACHE</span><span class="cyan">LOCAL</span></div>
+      <div class="row"><span>PROJECT DATA</span><span class="green">SYNCED</span></div>
+      <div class="row"><span>BACKUP</span><span class="green">CURRENT</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="security">
+    <div class="phead">A-TEAM SECURITY</div>
+    <div class="pbody">
+      <div class="row"><span>DEVICE LOCK</span><span class="green">ARMED</span></div>
+      <div class="row"><span>LOCAL BUS</span><span class="green">ENCRYPTED</span></div>
+      <div class="row"><span>ADB AUTH</span><span class="green">TRUSTED</span></div>
+      <div class="row"><span>JARVIS CORE</span><span class="cyan">SEALED</span></div>
+      <div class="sep"></div>
+      <div class="row"><span class="dim">THREAT LEVEL</span><span class="green">ZERO</span></div>
+      <div class="row"><span class="dim">LAST AUDIT</span><span>00:03:12</span></div>
+      <div class="row"><span class="dim">POLICY</span><span>LOCAL-FIRST</span></div>
+      <div style="margin-top:10px;text-align:center;color:var(--red2);letter-spacing:.18em">A-TEAM // NO PLAN B</div>
+    </div>
+  </section>
+
+  <div id="quick">
+    <div class="chip live">JARVIS LINKED</div>
+    <div class="chip">MOTO PAD 2026</div>
+    <div class="chip red">A-TEAM OPS</div>
+  </div>
+
+  <div id="tablet">
+    <div id="camera"></div><div id="speaker"></div><div id="homeDot"></div>
+    <div id="screen">
+      <div id="screenGrid"></div>
+      <div id="screenHeader"><div class="left">A-TEAM DIGITAL SOLUTIONS / MOBILE COMMAND</div><div class="right">● LOCAL</div></div>
+      <div id="coreTitle">J.A.R.V.I.S. // MOTO PAD INTELLIGENCE CORE</div>
+      <div id="core">
+        <div class="halo"></div><div class="ring"></div><div class="ring ring2"></div>
+        <div class="disk"><div class="A">A</div><div class="label">J.A.R.V.I.S.</div></div>
+      </div>
+      <div id="coreState">IDLE</div>
+      <div id="tabletTag">STRATEGY // EXECUTION // RESULTS // SOLUTIONS</div>
+
+      <div id="voice">
+        <div class="head">VOICE INPUT // WHISPER</div><div id="wave"></div>
+      </div>
+      <div id="outwave"></div>
+
+      <div id="terminal">
+        <div><span class="prompt">jarvis@motopad:~$</span> <span class="cmd" id="cmd">system status</span></div>
+        <div id="terminalState">all systems nominal // local intelligence online</div>
+        <div><span class="prompt">jarvis@motopad:~$</span> <span class="cmd">ready</span><span class="cursor"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="footer">
+    <div>MOTO PAD 2026 — <b>A-TEAM EDITION</b></div>
+    <div>SPACE / C — CINEMATIC</div>
+    <div>F — FULLSCREEN</div>
+  </div>
+</div>
+<div class="scan"></div><div class="vig"></div>
+
+<script src="../../core.js"></script>
+<script>
+"use strict";
+
+const Q=new URLSearchParams(location.search);
+const SHOT=Q.get("shot");
+AV.init({});
+AV.ready(a=>{document.title=(a.label||"Moto Pad 2026")+" // A-Team";});
+
+const cv=document.getElementById("stage"),ctx=cv.getContext("2d");
+let W=0,H=0,now=0,lastState="idle",energy=.22,level=0,cine=false;
+const dots=[],gridPts=[];
+const wave=document.getElementById("wave"),out=document.getElementById("outwave");
+for(let i=0;i<34;i++){const e=document.createElement("i");wave.appendChild(e)}
+for(let i=0;i<27;i++){const e=document.createElement("i");out.appendChild(e)}
+for(let i=0;i<95;i++)dots.push({x:Math.random(),y:Math.random(),p:Math.random()*6.28,s:.4+Math.random()*1.6});
+for(let i=0;i<18;i++)gridPts.push({a:Math.random()*Math.PI*2,r:.12+Math.random()*.40,v:.3+Math.random()*.9});
+
+function resize(){
+  const d=Math.min(devicePixelRatio||1,1.25);
+  W=cv.width=innerWidth*d;H=cv.height=innerHeight*d;
+  cv.style.width=innerWidth+"px";cv.style.height=innerHeight+"px";
+}
+addEventListener("resize",resize);resize();
+
+function ease(a,b,t){return a+(b-a)*(1-Math.exp(-t))}
+function target(){
+  if(AV.state==="thinking")return 1;
+  if(AV.state==="speaking")return .46+.54*Math.pow(AV.level,.72);
+  if(AV.state==="listening")return .55;
+  return .22;
+}
+function stateName(){
+  return AV.state==="thinking"?"THINKING":AV.state==="speaking"?"SPEAKING":AV.state==="listening"?"LISTENING":"IDLE";
+}
+function updateHUD(){
+  const s=stateName();
+  document.getElementById("state").textContent=s==="IDLE"?"SYSTEM READY":s;
+  document.getElementById("coreState").textContent=s;
+  const c=s==="LISTENING"?"#53dfff":s==="THINKING"?"#f2b75a":s==="SPEAKING"?"#9d7bff":"#51ed88";
+  document.getElementById("coreState").style.color=c;
+}
+function drawBackground(dt){
+  ctx.fillStyle="#030405";ctx.fillRect(0,0,W,H);
+  const c=AV.state==="listening"?"83,223,255":AV.state==="thinking"?"242,183,90":AV.state==="speaking"?"157,123,255":"242,38,61";
+  const g=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.min(W,H)*.66);
+  g.addColorStop(0,`rgba(${c},${.025+.085*energy})`);g.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle="rgba(255,255,255,.018)";ctx.lineWidth=1;
+  const step=Math.max(28,Math.min(W,H)/27);ctx.beginPath();
+  for(let x=0;x<W;x+=step){ctx.moveTo(x,0);ctx.lineTo(x,H)}
+  for(let y=0;y<H;y+=step){ctx.moveTo(0,y);ctx.lineTo(W,y)}
+  ctx.stroke();
+
+  for(const p of dots){
+    p.p+=dt*.001;
+    ctx.fillStyle=`rgba(215,224,227,${.025+.07*(.5+.5*Math.sin(p.p))})`;
+    ctx.fillRect(p.x*W,p.y*H,p.s,p.s);
+  }
+
+  // tablet-like glass reflection band
+  const sweep=(now/18000)%1.35-.18;
+  const rg=ctx.createLinearGradient(W*(sweep-.18),0,W*(sweep+.18),H);
+  rg.addColorStop(0,"rgba(255,255,255,0)");
+  rg.addColorStop(.5,"rgba(255,255,255,.022)");
+  rg.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+}
+function drawTelemetry(){
+  const s=stateName(), active=AV.level;
+  const cpu=Math.round(13+energy*48+Math.abs(Math.sin(now*.0007))*5);
+  const gpu=Math.round(8+energy*39);
+  const ram=Math.round(39+energy*17);
+  const npu=Math.round(18+energy*76);
+  const bat=Math.max(18,Math.min(98,86-energy*9+Math.sin(now*.0003)*1.5));
+  const set=(id,v)=>document.getElementById(id).textContent=v;
+  const bar=(id,v)=>document.getElementById(id).style.width=v+"%";
+  set("cpu",cpu+"%");bar("cpuBar",cpu);set("gpu",gpu+"%");bar("gpuBar",gpu);
+  set("ram",ram+"%");bar("ramBar",ram);set("npu",npu+"%");bar("npuBar",npu);
+  set("batteryPct",Math.round(bat)+"%");document.getElementById("batFill").style.height=Math.round(bat*.72)+"%";
+  set("draw",(12+energy*15).toFixed(1)+"W");set("batteryTemp",Math.round(32+energy*6)+"°C");set("perfTemp",Math.round(37+energy*7)+"°C");
+  set("latency",Math.round(10+energy*24)+"ms");
+  set("rx",(14+energy*26).toFixed(1)+" MB/s");set("tx",(5+energy*13).toFixed(1)+" MB/s");
+  const storage=42+Math.sin(now*.00015)*.15;set("storagePct",Math.round(storage)+"%");bar("storageBar",storage);
+  document.getElementById("chargeState").textContent=energy>.7?"PERFORMANCE CHARGE":"OPTIMIZED / CHARGING";
+  document.getElementById("terminalState").textContent=
+    s==="THINKING"?"processing command // neural workload elevated":
+    s==="SPEAKING"?"voice response transmitting // local TTS active":
+    s==="LISTENING"?"voice input receiving // whisper active":
+    "all systems nominal // local intelligence online";
+}
+function drawWaves(){
+  [...wave.children].forEach((e,i)=>{
+    const v=3+Math.abs(Math.sin(now*.009+i*.71))*6+AV.level*20;
+    e.style.height=Math.max(3,v*(AV.state==="listening"?1.25:.48))+"px";
+  });
+  [...out.children].forEach((e,i)=>{
+    const v=3+Math.abs(Math.sin(now*.011+i*.93))*6+AV.level*25;
+    e.style.height=Math.max(3,v*(AV.state==="speaking"?1.25:.42))+"px";
+  });
+}
+function drawParticles(dt){
+  const cx=W/2,cy=H/2;
+  ctx.save();ctx.globalCompositeOperation="lighter";
+  for(const p of gridPts){
+    p.a+=dt*.00025*p.v*(.5+energy*2);
+    const r=p.r*Math.min(W,H),x=cx+Math.cos(p.a)*r,y=cy+Math.sin(p.a)*r;
+    const hot=AV.state==="speaking"?"157,123,255":AV.state==="listening"?"83,223,255":"242,38,61";
+    ctx.fillStyle=`rgba(${hot},${.14+.25*energy})`;
+    ctx.beginPath();ctx.arc(x,y,1.2+energy*2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=`rgba(${hot},${.05+.07*energy})`;
+    ctx.beginPath();ctx.moveTo(cx+(x-cx)*.62,cy+(y-cy)*.62);ctx.lineTo(x,y);ctx.stroke();
+  }
+  ctx.restore();
+}
+function frame(ts){
+  const dt=Math.min(50,ts-(frame.last||ts));frame.last=ts;now+=dt;
+  AV.tick(dt);
+  if(AV.state!==lastState){lastState=AV.state;updateHUD()}
+  energy=ease(energy,target(),AV.state==="speaking"?150:500);
+  level=ease(level,AV.level,100);
+  document.getElementById("time").textContent=new Date().toLocaleTimeString([],{hour12:false});
+  drawTelemetry();drawWaves();drawBackground(dt);drawParticles(dt);
+
+  // central signal arcs
+  const cx=W/2,cy=H/2;
+  ctx.save();ctx.translate(cx,cy);ctx.globalCompositeOperation="lighter";
+  const color=AV.state==="listening"?"83,223,255":AV.state==="thinking"?"242,183,90":AV.state==="speaking"?"157,123,255":"242,38,61";
+  for(let k=0;k<3;k++){
+    const rr=Math.min(W,H)*(.11+k*.038+energy*.025);
+    ctx.strokeStyle=`rgba(${color},${.08+.11*energy})`;ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.arc(0,0,rr,now*.00035*(k%2?-1:1)+k,now*.00035*(k%2?-1:1)+k+1.6);ctx.stroke();
+  }
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+updateHUD();requestAnimationFrame(frame);
+
+addEventListener("keydown",e=>{
+  if(e.key==="f"||e.key==="F"){
+    document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+  }
+  if(e.code==="Space"||e.key==="c"||e.key==="C"){
+    e.preventDefault();cine=!cine;document.body.classList.toggle("cine",cine);
+  }
+});
+</script>
+</body>
+</html>

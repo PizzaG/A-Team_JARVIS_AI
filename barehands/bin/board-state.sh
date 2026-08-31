@@ -22,11 +22,39 @@
 # truth instead of memory. Reaches nothing but localhost; changes nothing.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PORT=$(python3 -c "import json;print(json.load(open('$DIR/barehands.json')).get('port',8794))" 2>/dev/null || echo 8794)
+# Portable interpreter, VALIDATED BY RUNNING one rather than by finding
+# one. python3 does not exist on Windows, where the python.org installer
+# provides py and python instead -- but a clean Windows 11 answers to
+# BOTH those names with a Microsoft Store placeholder that `command -v`
+# finds happily and that exits without running. So each candidate is
+# executed before it is trusted. python3 is tried first, so macOS and
+# Linux resolve exactly as before.
+PYBIN=""
+for c in python3 python py; do
+    if command -v "$c" >/dev/null 2>&1 && "$c" -c "pass" >/dev/null 2>&1; then
+        PYBIN="$c"; break
+    fi
+done
+# Last resort on a full agent stack: the voice line's own interpreter,
+# the one Python such an install guarantees. These scripts are standard
+# library only, so any Python 3 runs them.
+if [ -z "$PYBIN" ] && [ -x "$DIR/../backtalk/.venv/bin/python" ]; then
+    PYBIN="$DIR/../backtalk/.venv/bin/python"
+fi
+if [ -z "$PYBIN" ] && [ -x "$DIR/../backtalk/.venv/Scripts/python.exe" ]; then
+    PYBIN="$DIR/../backtalk/.venv/Scripts/python.exe"
+fi
+if [ -z "$PYBIN" ]; then
+    echo "No working Python found (tried python3, python, py)." >&2
+    echo "On Windows the name 'python' may be a Microsoft Store placeholder" >&2
+    echo "that is not an interpreter. Install the real one from python.org." >&2
+    exit 1
+fi
+PORT=$("$PYBIN" -c "import json;print(json.load(open('$DIR/barehands.json')).get('port',8794))" 2>/dev/null || echo 8794)
 STATE=$(curl -sS --max-time 3 "http://127.0.0.1:$PORT/state" 2>/dev/null) || {
     echo "The board is dark — the barehands server isn't running."; exit 1; }
 export STATE
-python3 <<'PY'
+"$PYBIN" <<'PY'
 import json, os
 
 try:

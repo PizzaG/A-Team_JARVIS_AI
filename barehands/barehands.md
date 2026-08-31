@@ -24,10 +24,11 @@ Work through the phases in order. One question at a time; wait for each answer. 
 ## Phase 1: Prove it runs (before any questions)
 
 1. Confirm you are running inside the repo folder (it contains `server.py`, `stage.html`, `barehands.json.example`). If not, ask the person to `cd` there and restart.
-2. Check `python3 --version` (any Python 3.9+ is fine; the server is stdlib-only, nothing to install).
-3. Start the server: `python3 server.py` (`python server.py` on Windows; run it in the background). It prints the URL.
-4. Tell them: open **http://127.0.0.1:8794/stage.html** in **Chrome** (Chrome's hand tracking is the proven path), allow the camera when asked, and wave a hand. A cursor ring should follow their fingers, and the assistant ring should be breathing on the left.
-5. Wait for them to confirm they see it. If the camera fails: the page needs a camera-equipped machine and Chrome; `C` cycles cameras if the wrong one opened. The first load needs internet (the hand-tracking model and 3D library load from Google's and jsdelivr's CDNs, then cache).
+2. **Confirm this machine has a camera before anything else**, because the board is a hand tracker and there is no version of it that works without one. A laptop's built-in camera is fine; a desktop needs a webcam plugged in. If there is none, say so plainly now rather than after a full install.
+3. Check `python3 --version` (any Python 3.9+ is fine; the server is stdlib-only, nothing to install). **On Windows do NOT trust this check**: a clean Windows 11 has no Python but still answers to the name, because the Microsoft Store leaves a stub on the PATH that passes `where python` and then exits 9009 the moment it runs. If `python --version` prints a version, you have one; if it talks about the Store or app execution aliases, you do not.
+4. Start the server: `python3 server.py`. **On Windows run `run.bat` instead** -- it finds an interpreter that genuinely works, falls back to the voice line's own if the machine has no system Python, and says so in plain words if there is nothing usable at all. Run it in the background; it prints the URL.
+5. Tell them: open **http://127.0.0.1:8794/stage.html** in **Chrome** (Chrome's hand tracking is the proven path), allow the camera when asked, and wave a hand. A cursor ring should follow their fingers, and the assistant ring should be breathing on the left.
+6. Wait for them to confirm they see it. If the camera fails: the page needs a camera-equipped machine and Chrome; `C` cycles cameras if the wrong one opened. The first load needs internet (the hand-tracking model and 3D library load from Google's and jsdelivr's CDNs, then cache).
 
 Do not continue until the board is alive on their screen.
 
@@ -61,7 +62,9 @@ Rules: one entry per orb; `notes` orbs may point anywhere; keep exactly one `med
 
 Ask: **"Want your AI wired in, so the ring reflects it working, and it can put things on your board?"** If yes:
 
-**4a. The ring (the face).** If they use Claude Code, merge this into the `hooks` section of their `~/.claude/settings.json` (create it if absent), replacing `REPO` with the absolute repo path:
+**4a. The ring (the face).** If they use Claude Code, merge this into the `hooks` section of the settings file **inside the folder their agent runs in** -- `<their agent folder>/.claude/settings.json`, creating it if absent -- replacing `REPO` with the absolute repo path:
+
+**Put it there and NOT in `~/.claude/settings.json`.** The home-folder file applies to every Claude Code session on the machine, so any session in any folder drives this person's ring: they watch their assistant claim to be thinking when it is idle and some unrelated work is running. Scoping it to the agent's own folder means only their agent moves their agent's face.
 
 ```json
 {
@@ -78,7 +81,9 @@ Ask: **"Want your AI wired in, so the ring reflects it working, and it can put t
 }
 ```
 
-On Windows, adapt the hook commands to the shell (for example `cmd /c echo thinking> REPO/state/state`; the server strips whitespace, so echo's trailing space is harmless). From the next session on, the ring spins up the moment they send a prompt and settles when the work is done. (Any other assistant wires in the same way: write `idle`/`listening`/`thinking`/`speaking` to `state/state`; optionally `state/mood.json` and `state/wave.json`; the format is documented at the top of `server.py`.)
+**The commands above work on Windows unchanged** -- write `REPO` with forward slashes and keep the quotes. Claude Code runs hooks through **bash**, not through `cmd`, so do not translate them: a `cmd /c` version has its backslashes eaten on the way through, the redirect target collapses into one absurd filename in the home folder, and a bare `cmd` with nothing left to run **starts interactively and captures the hook's stdin** -- quietly accumulating a file full of session ids, transcript paths and message text. Forward slashes work everywhere in both shells.
+
+**One thing worth telling them out loud:** the `Stop` hook is the only thing that ever writes `idle`, so a session that is killed or crashes mid-turn never writes it. The server treats a state left untouched for `state_timeout_s` (ten minutes by default) as stale and shows idle anyway, so a dead session settles the ring instead of freezing it on `thinking` forever. From the next session on, the ring spins up the moment they send a prompt and settles when the work is done. (Any other assistant wires in the same way: write `idle`/`listening`/`thinking`/`speaking` to `state/state`; optionally `state/mood.json` and `state/wave.json`; the format is documented at the top of `server.py`.)
 
 **4b. The board (the hands and eyes).** Add this to the CLAUDE.md (or system prompt) of the assistant they want driving the board, with REPO replaced:
 
@@ -86,7 +91,7 @@ On Windows, adapt the hook commands to the shell (for example `cmd /c echo think
 > A hand-tracked glass board runs on this machine (localhost only). You have hands and eyes on it:
 > - **When the person asks to SEE something** ("show me", "put it up", "pull up my notes on X"), don't answer with a wall of text in the terminal: find the thing, put it on the glass, and say what you put up. The board is your show-and-tell; reach for it whenever seeing beats reading.
 > - **Present something (the show-me verb):** `REPO/bin/board.sh '{"a":"present","title":"...","body":"..."}'` lands it center stage, enlarged and spotlit, with everything else dimmed. Also takes `"src"` for an image or model, or a notes `"file"` with `"open":1` to spotlight the opened note. The spotlight ends when the person grabs it or you present something else.
-> - **Stage ensemble pieces:** `REPO/bin/board.sh '{"a":"add_card","title":"...","body":"..."}'`; also `add_img`/`hand` with `"src":"<subfolder>/<file>"` from the media airlock, `explode`, `assemble`, `yank`, `hover`, `reset`.
+> - **Stage ensemble pieces:** `REPO/bin/board.sh '{"a":"add_card","title":"...","body":"..."}'`, optionally with `"x"` and `"y"` as 0-1 fractions of the screen so several cards do not land on top of each other (the same numbers `board-state.sh` reports back); also `add_img`/`hand` with `"src":"<subfolder>/<file>"` from the media airlock, `explode`, `assemble`, `yank`, `hover`, `reset`.
 > - **Look at the board:** `REPO/bin/board-state.sh` prints every item currently up. Run it before commenting on the board; the user moves things by hand, so never trust memory.
 > - **The airlock law:** only files inside `REPO/media/` can stage. To show a new image, copy it into `media/misc/` first, then stage it.
 
@@ -127,7 +132,7 @@ mkdir -p ~/my-agent && cd ~/my-agent && git clone https://github.com/jaredrhod/f
 
 Windows (PowerShell):
 ```
-mkdir $HOME\my-agent; cd $HOME\my-agent; Invoke-WebRequest https://github.com/jaredrhod/fullstack-agent/archive/refs/heads/main.zip -OutFile fsa.zip; Expand-Archive fsa.zip .; Rename-Item fullstack-agent-main fullstack-agent; Remove-Item fsa.zip; cd fullstack-agent; claude "set me up"
+$d="$env:USERPROFILE\.local\bin"; if (Test-Path "$d\claude.exe") { $env:Path="$d;$env:Path" }; New-Item -ItemType Directory -Force -Path $HOME\my-agent | Out-Null; cd $HOME\my-agent; if (-not (Test-Path fullstack-agent\fullstack-agent.md)) { Invoke-WebRequest https://github.com/jaredrhod/fullstack-agent/archive/refs/heads/main.zip -OutFile fsa.zip; Expand-Archive fsa.zip . -Force; New-Item -ItemType Directory -Force -Path fullstack-agent | Out-Null; Get-ChildItem fullstack-agent-main -Force | Copy-Item -Destination fullstack-agent -Recurse -Force; Remove-Item fullstack-agent-main -Recurse -Force; Remove-Item fsa.zip }; cd fullstack-agent; if (Get-Command claude -ErrorAction SilentlyContinue) { claude "set me up" } else { Write-Output "Claude Code is not installed yet. Install it first at https://jaredrhod.com/start then paste this again." }
 ```
 
 Tell them what to expect: a fresh Claude Code session opens with the installer already talking. It asks their name, who their agent should be, and which pieces they want. Anything they already have gets found and kept. Their board config is kept as-is, and the ring gets wired to the voice so it breathes, spins, and pulses with the real conversation.

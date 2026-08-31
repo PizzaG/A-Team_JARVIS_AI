@@ -1,13 +1,10 @@
 # fullstack-agent
 
-> **Never used Claude Code?** Start at [jaredrhod.com](https://jaredrhod.com): pick your situation and it routes you to the right path.
+Retooled to fully work with Ollama and Qwen3.6:27B
 
-**Runs on:** Claude Code only; the installer itself is a Claude Code wizard. The $20 Pro plan is enough.
+100% Free and 100% Local
 
-Not an agent that writes full-stack code. **An agent that HAS a full stack: memory, voice, and face, plus an optional set of hands.** This repo assembles my whole setup on your machine in one guided conversation, and when it finishes, your screen is a living circuit board with your agent's name on the chip, and it speaks first:
-
-> "Hello [you], what are we working on today?"
-
+Original Author:
 [![Watch the tour: My Jarvis AI Assistant, free on GitHub](https://img.youtube.com/vi/FiOTrxq9ckM/maxresdefault.jpg)](https://www.youtube.com/watch?v=FiOTrxq9ckM)
 
 **Nine minutes shows you everything you're about to get** (the voice, the face, the memory, and the hands): the tour video above, straight from my own desk.

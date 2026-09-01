@@ -1,4 +1,4 @@
-# JARVIS Local
+# A-Team - JARVIS AI - 100% Free & 100% Local
 
 A local-first AI assistant stack built around Ollama + Qwen, with local
 speech input/output, selectable visual faces, an optional Hands addon,

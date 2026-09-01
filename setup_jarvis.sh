@@ -106,9 +106,9 @@ source "$VENV/bin/activate"
 python -m pip install --upgrade pip setuptools wheel
 
 log "Installing selected Python features"
-python -m pip install -r "$ROOT/requirements-core.txt"
-$VOICE && python -m pip install -r "$ROOT/requirements-voice.txt"
-$INTERNET && python -m pip install -r "$ROOT/requirements-web.txt"
+python -m pip install -r "$ROOT/requirements/requirements-core.txt"
+$VOICE && python -m pip install -r "$ROOT/requirements/requirements-voice.txt"
+$INTERNET && python -m pip install -r "$ROOT/requirements/requirements-web.txt"
 
 # Write the feature selections without touching unrelated configuration.
 python - "$ROOT/config/jarvis.json" "$MODEL" "$VOICE" "$VISUALS" "$HANDS" "$MEMORY" "$INTERNET" "$FACE" <<'PY'

@@ -1,3 +1,0 @@
-barehands up: http://127.0.0.1:8794/stage.html
-  tracker (camera): open that URL in Chrome
-  render (overlay): same URL + ?role=render

@@ -1,0 +1,5 @@
+model: ollama/qwen3.8:27b
+openai-api-base: http://localhost:11434
+watch-files: true
+chat-history-file: logs/.aider.chat.history.log
+input-history-file: logs/.aider.input.history.log

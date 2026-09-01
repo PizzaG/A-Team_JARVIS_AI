@@ -3,10 +3,10 @@
   "ollama": {
     "url": "http://127.0.0.1:11434/api/chat",
     "model": "qwen3.6:27b",
-    "temperature": 0.7,
-    "max_tokens": 4096,
+    "temperature": 0.55,
+    "max_tokens": 8192,
     "timeout": 300,
-    "max_tool_rounds": 20,
+    "max_tool_rounds": 15,
     "think": true,
     "num_ctx": 32768
   },
@@ -14,7 +14,7 @@
     "whisper_model": "tiny.en",
     "whisper_device": "cpu",
     "whisper_compute_type": "int8",
-    "kokoro_voice": "bf_emma",
+    "kokoro_voice": "af_heart",
     "sample_rate": 24000,
     "speed": 1.10,
     "speech_normalization": true,
@@ -28,7 +28,7 @@
     "ai_visualizer_bus": "ai-visualizer",
     "barehands_state": "barehands/state",
     "enabled": true,
-    "face": "a-team-ops",
+    "face": "a-team-android",
     "barehands_enabled": true
   },
   "research": {
@@ -44,6 +44,6 @@
     "auto_log": true
   },
   "display": {
-    "show_tool_activity": false
+    "show_tool_activity": true
   }
 }

@@ -1,0 +1,6 @@
+{
+  "version": 5,
+  "display": "2.6",
+  "file": "A-Team-JARVIS_AI-v2.6.7z",
+  "changelog": "\n - Active agent name is now used throughout the status display\n - Added Stopped, Starting.., Running, and Working agent states\n - Existing configured agent names are preserved during updates\n - JARVIS remains the default agent name for fresh installations\n - Public Release v2.6\n"
+}
